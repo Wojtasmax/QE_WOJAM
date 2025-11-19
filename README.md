@@ -1,2 +1,2 @@
 # QE_WOJM
-prace domowe
+Problem Sets for Quantitative Economics
