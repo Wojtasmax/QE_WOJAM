@@ -1,2 +1,2 @@
-# QE_WOJM
+# QE_WOJAM
 Problem Sets for Quantitative Economics
