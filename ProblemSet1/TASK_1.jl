@@ -31,3 +31,64 @@ histogram(pois_standarized;
     μ = mean(pois_standarized)
     σ = std(pois_standarized)
     
+# kind of brute force below 
+draw_pois = zeros(1000)
+for j in 1:5 #summing
+    draw_pois += rand(pois, n)
+end
+pois_standarized = (draw_pois .- n .* λ)./(λ * n) #i dont remember if this standarization is ok?
+histogram(pois_standarized;
+	    bins=30,
+	    normalize = :pdf,
+	    label = "data",
+	    xlabel = "pois_standarized",
+	    ylabel = "Density",
+	    title = "Histogram of pois_standarized")
+x = range(minimum(pois_standarized), maximum(pois_standarized), length=200)
+μ = mean(pois_standarized)
+σ = std(pois_standarized)
+
+for j in 1:25 #summing
+    draw_pois += rand(pois, n)
+end
+pois_standarized = (draw_pois .- n .* λ)./(λ * n) #i dont remember if this standarization is ok?
+histogram(pois_standarized;
+	    bins=30,
+	    normalize = :pdf,
+	    label = "data",
+	    xlabel = "pois_standarized",
+	    ylabel = "Density",
+	    title = "Histogram of pois_standarized")
+x = range(minimum(pois_standarized), maximum(pois_standarized), length=200)
+μ = mean(pois_standarized)
+σ = std(pois_standarized)
+
+for j in 1:100 #summing
+    draw_pois += rand(pois, n)
+end
+pois_standarized = (draw_pois .- n .* λ)./(λ * n) #i dont remember if this standarization is ok?
+histogram(pois_standarized;
+	    bins=30,
+	    normalize = :pdf,
+	    label = "data",
+	    xlabel = "pois_standarized",
+	    ylabel = "Density",
+	    title = "Histogram of pois_standarized")
+x = range(minimum(pois_standarized), maximum(pois_standarized), length=200)
+μ = mean(pois_standarized)
+σ = std(pois_standarized)
+
+for j in 1:1000 #summing
+    draw_pois += rand(pois, n)
+end
+pois_standarized = (draw_pois .- n .* λ)./(λ * n) #i dont remember if this standarization is ok?
+histogram(pois_standarized;
+	    bins=30,
+	    normalize = :pdf,
+	    label = "data",
+	    xlabel = "pois_standarized",
+	    ylabel = "Density",
+	    title = "Histogram of pois_standarized")
+x = range(minimum(pois_standarized), maximum(pois_standarized), length=200)
+μ = mean(pois_standarized)
+σ = std(pois_standarized)
