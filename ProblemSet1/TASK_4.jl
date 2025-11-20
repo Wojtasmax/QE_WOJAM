@@ -1,4 +1,3 @@
-2+2
 using CSV
 using DataFrames
 using Statistics
@@ -38,6 +37,7 @@ function sanity_check(weights)
 end 
 
 # Solve the system using the following methods:
+
 
 # 1: Julia’s backslash operator
 
@@ -86,4 +86,47 @@ result4=gmres(A, b)
 weights4=result4[1:end-2]
 sanity_check(weights4)
 
-# 5 sleep
+# 5 preconditioned system P−1Ax = P−1b using GMRES
+# ────────────────────────────────
+# ██████╗ ██████╗  ██████╗ ██████╗ 
+# ╚════██╗╚════██╗██╔════╝╚════██╗
+#  █████╔╝ █████╔╝██║      █████╔╝
+# ██╔═══╝ ██╔═══╝ ██║      ╚═══██╗
+# ███████╗███████╗╚██████╗██████╔╝
+# ╚══════╝╚══════╝ ╚═════╝╚═════╝ 
+# ────────────────────────────────
+P=Diagonal(append!(diag(cov_matrix), [1,1]))
+Pm1=inv(P)
+result5=gmres(Pm1*A, Pm1*b)
+weights5=result5[1:end-2]
+sanity_check(weights5)
+
+# 5.5 Use build in preconditioner
+result55=gmres(A, b, Pl=P)
+result55-result5
+
+# TODO For each method, report:
+# • Number of iterations to converge (if applicable)
+# • Total computational time
+# • Relative residual norm ∥Ax−b∥^2
+# TODO
+
+# 6. Report the optimal portfolio weights w obtained from each method. 
+# Verify and report that the weights sum to 1 and that the expected return constraint is satisfied. 
+# Report the portfolio variance σ^2_p = wTΣw
+function portfolio_variance(weights, cov_matrix)
+    return weights' * cov_matrix * weights
+end
+# the dictionary contains optimal weights for each method with obvious keys
+weights=Dict("backslash"=>weights1,
+             "jacobi"=>weights2,
+             "cg"=>weights3,
+             "gmres"=>weights4,
+             "preconditioned_gmres"=>weights5)
+
+             for (key, value) in weights
+    print("*** Method $key ***\n weights sum to ", sum(value), "\n expected return ", dot(value, mean_returns), "\n portfolio variance ", portfolio_variance(value, cov_matrix), "\n\n")
+end
+
+
+
