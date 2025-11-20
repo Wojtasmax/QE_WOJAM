@@ -55,7 +55,7 @@ gramA = A'*A
 any(diag(gramA) .== 0)
 #false so there aint no zeros, great
 cond_gramA = cond(gramA)
-# TODO check diagonal dominance (by columns)
+# check diagonal dominance (by columns)
 function check_diag_dominance(Mat::Matrix)
     # 1- diag dominant 0- guess what
     for i in axes(Mat, 1)
@@ -70,7 +70,6 @@ check_diag_dominance(gramA)
 
 # It seems that the A^T A matrix is not diagonally dominant (it doesnt look so anyway)
 # So there is no need to write this method indeed the custom one returns nonsense
-# TODO write custom, for now I use the built in one
 result2=jacobi(gramA, A'*b)
 weights2=result2[1:end-2]
 sanity_check(weights2)
@@ -88,14 +87,6 @@ weights4=result4[1:end-2]
 sanity_check(weights4)
 
 # 5 preconditioned system P−1Ax = P−1b using GMRES
-# ────────────────────────────────
-# ██████╗ ██████╗  ██████╗ ██████╗ 
-# ╚════██╗╚════██╗██╔════╝╚════██╗
-#  █████╔╝ █████╔╝██║      █████╔╝
-# ██╔═══╝ ██╔═══╝ ██║      ╚═══██╗
-# ███████╗███████╗╚██████╗██████╔╝
-# ╚══════╝╚══════╝ ╚═════╝╚═════╝ 
-# ────────────────────────────────
 P=Diagonal(append!(diag(cov_matrix), [1,1]))
 Pm1=inv(P)
 result5=gmres(Pm1*A, Pm1*b)
@@ -167,3 +158,13 @@ plot(expected_returns, sqrt.(portfolio_variances),
     title="Efficient Frontier",
     legend=false
 )
+#=
+────────────────────────────────
+██████╗ ██████╗  ██████╗ ██████╗ 
+╚════██╗╚════██╗██╔════╝╚════██╗
+█████╔╝ █████╔╝██║      █████╔╝
+██╔═══╝ ██╔═══╝ ██║      ╚═══██╗
+███████╗███████╗╚██████╗██████╔╝
+╚══════╝╚══════╝ ╚═════╝╚═════╝ 
+────────────────────────────────
+=#
