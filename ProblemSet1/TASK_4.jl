@@ -5,6 +5,7 @@ using Random
 using Distributions
 using LinearAlgebra
 using IterativeSolvers
+using Plots
 #1. load data into a df
 cd(@__DIR__)
 df = CSV.read("asset_returns.csv", DataFrame)
@@ -124,9 +125,45 @@ weights=Dict("backslash"=>weights1,
              "gmres"=>weights4,
              "preconditioned_gmres"=>weights5)
 
-             for (key, value) in weights
-    print("*** Method $key ***\n weights sum to ", sum(value), "\n expected return ", dot(value, mean_returns), "\n portfolio variance ", portfolio_variance(value, cov_matrix), "\n\n")
+for (key, value) in weights
+    print("*** Method $key ***\n weights sum to ", sum(value), "\n return minus expected return ", μ-dot(value, mean_returns), "\n portfolio variance ", portfolio_variance(value, cov_matrix), "\n\n")
+end
+# here i report relative residual norms
+results=Dict("backslash"=>result1,
+             "jacobi"=>result2,
+             "cg"=>result3,
+             "gmres"=>result4,
+             "preconditioned_gmres"=>result5)
+for (key, value) in results
+    rel_residual_norm = norm(A * value - b) / norm(b)
+    print("*** Method $key ***\n Relative residual norm: $rel_residual_norm\n\n")
 end
 
+# Choose your preferred method and solve the system for 50 different values of µ¯ ∈ [0.01, 0.10]. 
+# For each new target return, use the previous solution as the initial guess for the iterative method.
 
+# TODO I used backslash out of sloppiness but a different method shall be chosen (cf. comments below)
+# We have seen that the backlash method is the best so we use it
+# We ignore previous solution as initial guess since backlash doesn't need it
 
+expected_returns = range(0.01, stop=0.10, length=50)
+
+function find_min_var_portfolios(μ)
+    # A = A
+    b = vcat(zeros(size(cov_matrix, 1)), μ, 1.0)
+    μweights=(A\b)[1:end-2] # I will not be
+    return portfolio_variance(μweights, cov_matrix)
+end
+
+# Plot the efficient frontier by solving the optimization problem for multiple target 
+# returns µ¯ ∈ [0.01, 0.10]. 
+# For each point, record portfolio variance σ^2 and plot σ (standard deviation) against µ
+
+portfolio_variances = [find_min_var_portfolios(μ) for μ in expected_returns]
+
+plot(expected_returns, sqrt.(portfolio_variances),
+    xlabel="Expected Return (µ)",
+    ylabel="Portfolio Standard Deviation (σ)",
+    title="Efficient Frontier",
+    legend=false
+)
