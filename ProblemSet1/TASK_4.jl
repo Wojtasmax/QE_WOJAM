@@ -1,4 +1,3 @@
-2+2
 using CSV
 using DataFrames
 using Statistics
@@ -6,6 +5,7 @@ using Random
 using Distributions
 using LinearAlgebra
 using IterativeSolvers
+using Plots
 #1. load data into a df
 cd(@__DIR__)
 df = CSV.read("asset_returns.csv", DataFrame)
@@ -39,6 +39,7 @@ end
 
 # Solve the system using the following methods:
 
+
 # 1: Julia’s backslash operator
 
 result1 = A\b
@@ -54,7 +55,7 @@ gramA = A'*A
 any(diag(gramA) .== 0)
 #false so there aint no zeros, great
 cond_gramA = cond(gramA)
-# TODO check diagonal dominance (by columns)
+# check diagonal dominance (by columns)
 function check_diag_dominance(Mat::Matrix)
     # 1- diag dominant 0- guess what
     for i in axes(Mat, 1)
@@ -69,7 +70,6 @@ check_diag_dominance(gramA)
 
 # It seems that the A^T A matrix is not diagonally dominant (it doesnt look so anyway)
 # So there is no need to write this method indeed the custom one returns nonsense
-# TODO write custom, for now I use the built in one
 result2=jacobi(gramA, A'*b)
 weights2=result2[1:end-2]
 sanity_check(weights2)
@@ -86,4 +86,85 @@ result4=gmres(A, b)
 weights4=result4[1:end-2]
 sanity_check(weights4)
 
-# 5 sleep
+# 5 preconditioned system P−1Ax = P−1b using GMRES
+P=Diagonal(append!(diag(cov_matrix), [1,1]))
+Pm1=inv(P)
+result5=gmres(Pm1*A, Pm1*b)
+weights5=result5[1:end-2]
+sanity_check(weights5)
+
+# 5.5 Use build in preconditioner
+result55=gmres(A, b, Pl=P)
+result55-result5
+
+# TODO For each method, report:
+# • Number of iterations to converge (if applicable)
+# • Total computational time
+# • Relative residual norm ∥Ax−b∥^2
+# TODO
+
+# 6. Report the optimal portfolio weights w obtained from each method. 
+# Verify and report that the weights sum to 1 and that the expected return constraint is satisfied. 
+# Report the portfolio variance σ^2_p = wTΣw
+function portfolio_variance(weights, cov_matrix)
+    return weights' * cov_matrix * weights
+end
+# the dictionary contains optimal weights for each method with obvious keys
+weights=Dict("backslash"=>weights1,
+             "jacobi"=>weights2,
+             "cg"=>weights3,
+             "gmres"=>weights4,
+             "preconditioned_gmres"=>weights5)
+
+for (key, value) in weights
+    print("*** Method $key ***\n weights sum to ", sum(value), "\n return minus expected return ", μ-dot(value, mean_returns), "\n portfolio variance ", portfolio_variance(value, cov_matrix), "\n\n")
+end
+# here i report relative residual norms
+results=Dict("backslash"=>result1,
+             "jacobi"=>result2,
+             "cg"=>result3,
+             "gmres"=>result4,
+             "preconditioned_gmres"=>result5)
+for (key, value) in results
+    rel_residual_norm = norm(A * value - b) / norm(b)
+    print("*** Method $key ***\n Relative residual norm: $rel_residual_norm\n\n")
+end
+
+# Choose your preferred method and solve the system for 50 different values of µ¯ ∈ [0.01, 0.10]. 
+# For each new target return, use the previous solution as the initial guess for the iterative method.
+
+# TODO I used backslash out of sloppiness but a different method shall be chosen (cf. comments below)
+# We have seen that the backlash method is the best so we use it
+# We ignore previous solution as initial guess since backlash doesn't need it
+
+expected_returns = range(0.01, stop=0.10, length=50)
+
+function find_min_var_portfolios(μ)
+    # A = A
+    b = vcat(zeros(size(cov_matrix, 1)), μ, 1.0)
+    μweights=(A\b)[1:end-2] # I will not be
+    return portfolio_variance(μweights, cov_matrix)
+end
+
+# Plot the efficient frontier by solving the optimization problem for multiple target 
+# returns µ¯ ∈ [0.01, 0.10]. 
+# For each point, record portfolio variance σ^2 and plot σ (standard deviation) against µ
+
+portfolio_variances = [find_min_var_portfolios(μ) for μ in expected_returns]
+
+plot(expected_returns, sqrt.(portfolio_variances),
+    xlabel="Expected Return (µ)",
+    ylabel="Portfolio Standard Deviation (σ)",
+    title="Efficient Frontier",
+    legend=false
+)
+#=
+────────────────────────────────
+██████╗ ██████╗  ██████╗ ██████╗ 
+╚════██╗╚════██╗██╔════╝╚════██╗
+█████╔╝ █████╔╝██║      █████╔╝
+██╔═══╝ ██╔═══╝ ██║      ╚═══██╗
+███████╗███████╗╚██████╗██████╔╝
+╚══════╝╚══════╝ ╚═════╝╚═════╝ 
+────────────────────────────────
+=#
