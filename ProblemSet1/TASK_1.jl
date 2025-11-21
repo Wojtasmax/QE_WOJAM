@@ -7,61 +7,47 @@ n = 1000
 
 pois = Poisson(λ)
 
-#draw_pois = rand(pois, n)
-
+plots = Vector{Plots.Plot}(undef, 4)
 ranges = [5, 25, 100, 1000]
-# needs corrections - draws only one plot - why?
-for N in ranges
-    draw_pois = zeros(1000)
-    for j in 1:N #summing
+for N in 1:4
+    draw_pois = zeros(n)
+    for j in 1:ranges[N] #summing
         draw_pois += rand(pois, n)
     end
-        h = histogram(pois_standarized;
+    pois_standarized = (draw_pois./ranges[N] .-  λ)./(λ / sqrt(ranges[N])) #needs cto be verified
+    h = histogram(pois_standarized;
         bins=20,
         normalize=:pdf,
         label="data",
         xlabel="pois_standarized",
         ylabel="Density",
-        title="Histogram for N=$(N)")
+        title="Histogram for N=$(ranges[N])")
+
 
     x = range(minimum(pois_standarized), maximum(pois_standarized), length=200)
     μ = mean(pois_standarized)
     σ = std(pois_standarized)
     plot!(h, x, pdf.(Normal(μ, σ), x); lw=2, color=:red, label="Normal(μ,σ)")
-
-    display(h)    
+    plots[N] = h   
 end
+
+plot(plots..., layout=(2,2), size=(800,600))
 
 pois_standarized
 histogram(pois_standarized)
-
-
-
-#here i tried to store values of each iteration  in one matrix but concatenation crashes
-mat = zeros(1000,1)
-typeof(mat)
-draw_pois = zeros(1000)
-for i in 1:4
-    for j in 1:ranges[i] #summing
-        draw_pois += rand(pois, n)
-    end
-    pois_standarized = (draw_pois .- n .* λ)./(λ * n) #i dont remember if this standarization is ok?
-    hcat(mat, pois_standarized)
-end
-print(mat)
 
     
 # kind of brute force below for ranges - it works
 
 
 draw_pois = zeros(n)
-for j in 1:n #summing
+for j in 1:5 #summing
     draw_pois += rand(pois, n)
 end
 
 pois_standarized = (draw_pois./5 .- λ)./sqrt(λ / 5) #i dont remember if this standarization is ok?
 histogram(pois_standarized;
-	    bins=30,
+	    bins=20,
 	    normalize = :pdf,
 	    label = "data",
 	    xlabel = "pois_standarized",
