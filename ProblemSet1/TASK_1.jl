@@ -3,32 +3,34 @@ using Random, Distributions, StatsPlots, Statistics
 Random.seed!(1234)
 
 λ = 1.0
-n = 1000
+N = 1000
 
 pois = Poisson(λ)
 
 plots = Vector{Plots.Plot}(undef, 4)
+
 ranges = [5, 25, 100, 1000]
-for N in 1:4
-    draw_pois = zeros(n)
-    for j in 1:ranges[N] #summing
-        draw_pois += rand(pois, n)
+
+for n in 1:4
+    draw_pois = zeros(N)
+    for j in 1:ranges[n] #summing
+        draw_pois += rand(pois, N)
     end
-    pois_standarized = (draw_pois./ranges[N] .-  λ)./(λ / sqrt(ranges[N])) #needs cto be verified
+    pois_standarized = (draw_pois./ranges[n] .-  λ)./(λ / sqrt(ranges[n])) #needs to be verified
     h = histogram(pois_standarized;
         bins=20,
         normalize=:pdf,
         label="data",
         xlabel="pois_standarized",
         ylabel="Density",
-        title="Histogram for N=$(ranges[N])")
+        title="Histogram for N=$(ranges[n])")
 
 
     x = range(minimum(pois_standarized), maximum(pois_standarized), length=200)
     μ = mean(pois_standarized)
     σ = std(pois_standarized)
     plot!(h, x, pdf.(Normal(μ, σ), x); lw=2, color=:red, label="Normal(μ,σ)")
-    plots[N] = h   
+    plots[n] = h   
 end
 
 plot(plots..., layout=(2,2), size=(800,600))
@@ -37,7 +39,7 @@ pois_standarized
 histogram(pois_standarized)
 
     
-# kind of brute force below for ranges - it works
+# kind of brute force below for ranges - but it works
 
 
 draw_pois = zeros(n)
