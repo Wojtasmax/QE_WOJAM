@@ -48,10 +48,10 @@ plot(shares, solutions_consumption, label = "Consumption of good 1 by person 1")
 plot!(shares, ω_1[1]+ω_2[1].-solutions_consumption, label = "Consumption of good 1 by person 2")
 
 #Changing the elasticity
-σ = 5
+σ = 0.2
 
 solutions_price = [
-    solve(p_2, x, σ, ω_1, ω_2)
+    solve(p_2, x, σ , ω_1, ω_2)
     for x in shares
 ]
 
