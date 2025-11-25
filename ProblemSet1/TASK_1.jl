@@ -44,6 +44,8 @@ for n in 1:4
     μ = mean(pois_standardized)
     σ = std(pois_standardized)
     plot!(h, x, pdf.(Normal(μ, σ), x); lw=2, color=:red, label="Normal(μ,σ)")
+    
+    #storing the plot
     plots[n] = h   
 end
 
