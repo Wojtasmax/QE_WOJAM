@@ -11,6 +11,12 @@ function demand_good1(p1, x, σ, ω)
     return num / den
 end
 
+function demand_good2(p1, x, σ, ω)
+    num = ((1 - x)^σ) * (p1*ω[1] + ω[2])
+    den = x^σ * p1^(1 - σ) + (1 - x)^σ
+    return num / den
+end
+
 function solve(share, elasticity, wealth1, wealth2) 
 
     equation(p1) =  demand_good1(p1, share, elasticity, wealth1) + demand_good1(p1, share, elasticity, wealth2) - (wealth1[1] + wealth2[1])
@@ -24,8 +30,6 @@ function solve(share, elasticity, wealth1, wealth2)
         # if solution is extreme
         return NaN
     end
-
-    return exp(zstar)
 end 
 
 #Choosing the range of x
@@ -71,6 +75,35 @@ plot(shares, solutions_consumption2, label = "Consumption of good 1 by person 1 
 h4 = plot!(shares, ω_1[1]+ω_2[1].-solutions_consumption2, label = "Consumption of good 1 by person 2 with σ = 5")
 
 
+#Two methods, both not working
+function equal_consumption(elasticity, wealth1, wealth2)
+    equation_consumption(x) = demand_good1(solve(x, elasticity, ωealth1, ωealth2), x, elasticity, ωealth1)-demand_good2(solve(x, elasticity, ωealth1, ωealth2), x, elasticity, ωealth1)
+
+    try
+        xstar = find_zero(equation_consumption, (0.0, 1.0), Bisection())
+        return exp(xstar)
+    catch e
+        # if solution is extreme
+        return NaN
+    end
+end
+
+function equal_consumption_2(elasticity, wealth1, wealth2)
+    
+    
+    equation_consumption_2(x) = x/(1-x) - solve(x, elasticity, wealth1, wealth2) 
+
+    try
+        xstar = find_zero(equation_consumption_2, (0.0, 1.0), Bisection())
+        return exp(xstar)
+    catch e
+        # if solution is extreme
+        return NaN
+    end
+end
+
+
+equal_consumption_2(σ_2, ω_1, ω_2)
 
 
 #The higher the elasticity, the more substitute the goods become. Therefore, given the starting parameters, the growing elasticity would mean that they would both prefer to have just one good, and so price would not be very dependent on x. 
