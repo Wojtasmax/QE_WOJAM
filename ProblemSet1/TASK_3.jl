@@ -30,7 +30,7 @@ function solve(share, elasticity, wealth1, wealth2)
         # if solution is extreme
         return NaN
     end
-end 
+end
 
 #Choosing the range of x
 shares = range(0.01, 0.99; length = 1000)
@@ -43,6 +43,13 @@ solutions_price = [
 
 #Ploting the prices of good 1 
 h1 = plot(shares, solutions_price, label = "Price of good 1, σ = 0.2")
+
+#Testing whether our solutions look like exact solutions achieved theoretically
+ratio = ((ω_1[2]+ω_2[2])/(ω_1[1]+ω_2[1]))^(1/σ)
+
+plot(shares, solutions_price, label = "Price of good 1, σ = 0.2, achieved numerically")
+test_plot = plot!(shares, ratio * (shares ./ (1 .- shares)), label = "Price of good 1, σ = 0.2, achieved theoretically")
+#As we can see, both plots are the same - this is good, since the (ω_1[2]+ω_2[2])/(ω_1[1]+ω_2[1]))^(1/σ) * (x/1-x) is the theoretical answer to the problem, achieved by method of pen and paper.
 
 solutions_consumption = [
     demand_good1(solve(x, σ, ω_1, ω_2), x, σ, ω_1)
@@ -74,8 +81,7 @@ solutions_consumption2 = [
 plot(shares, solutions_consumption2, label = "Consumption of good 1 by person 1 with σ = 5")
 h4 = plot!(shares, ω_1[1]+ω_2[1].-solutions_consumption2, label = "Consumption of good 1 by person 2 with σ = 5")
 
-
-#Two methods, both not working
+#Let us try to find x that would give us equal consumption of both goods
 function equal_consumption(elasticity, wealth1, wealth2)
     equation_consumption(x) = demand_good1(solve(x, elasticity, ωealth1, ωealth2), x, elasticity, ωealth1)-demand_good2(solve(x, elasticity, ωealth1, ωealth2), x, elasticity, ωealth1)
 
@@ -88,22 +94,16 @@ function equal_consumption(elasticity, wealth1, wealth2)
     end
 end
 
-function equal_consumption_2(elasticity, wealth1, wealth2)
-    
-    
-    equation_consumption_2(x) = x/(1-x) - solve(x, elasticity, wealth1, wealth2) 
+#Let us look at the graphs
+plot(shares, solutions_price, label = "Price of good 1, σ = 0.2")
+h5 = plot!(shares, shares ./ (1 .- shares))
 
-    try
-        xstar = find_zero(equation_consumption_2, (0.0, 1.0), Bisection())
-        return exp(xstar)
-    catch e
-        # if solution is extreme
-        return NaN
-    end
-end
+plot(shares, solutions_price_2, label = "Price of good 1, σ = 5")
+h6 = plot!(shares, shares ./ (1 .- shares))
 
+#It is clear that they do not meet, so there is no solution.
+#Actually, we can prove, that equal consumption of both goods can happen only and when p_1 = x/(1-x), and given the theoretical solution of p_1 = (ω_1[2]+ω_2[2])/(ω_1[1]+ω_2[1]))^(1/σ) * (x/1-x) this is only possible when there is the same number of both goods, and then they will consume equal amounts no matter the share.
 
-equal_consumption_2(σ_2, ω_1, ω_2)
 
 
 #The higher the elasticity, the more substitute the goods become. Therefore, given the starting parameters, the growing elasticity would mean that they would both prefer to have just one good, and so price would not be very dependent on x. 
