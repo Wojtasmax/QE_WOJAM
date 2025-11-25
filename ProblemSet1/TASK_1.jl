@@ -1,23 +1,37 @@
 using Random, Distributions, StatsPlots, Statistics
 
+#setting the seed for reproducibility
 Random.seed!(1234)
 
+# setting the parameters
 λ = 1.0
 N = 1000
 
+# defining Poisson distribution
 pois = Poisson(λ)
 
+# preparing array to store plots
 plots = Vector{Plots.Plot}(undef, 4)
 
+# simulating and plotting for different n
 ranges = [5, 25, 100, 1000]
 
+#loop over different n
 for n in 1:4
-    draw_pois = zeros(N)
-    for j in 1:ranges[n] #summing
+	
+	#preparing vector to store Poisson draws
+	draw_pois = zeros(N)
+
+	#summing n Poisson draws
+    for j in 1:ranges[n] 
         draw_pois += rand(pois, N)
     end
-    pois_standardized = (draw_pois./ranges[n] .-  λ)./(λ / sqrt(ranges[n])) #needs to be verified
-    h = histogram(pois_standardized;
+    
+	#standardizing mean with central limit theorem
+	pois_standardized = (draw_pois./ranges[n] .-  λ)./(λ / sqrt(ranges[n])) 
+
+	#plotting histogram
+	h = histogram(pois_standardized;
         bins=25,
         normalize=:pdf,
         label="data",
@@ -25,7 +39,7 @@ for n in 1:4
         ylabel="Density",
         title="Histogram for n=$(ranges[n])")
 
-
+	#comparing with normal distribution
     x = range(minimum(pois_standardized), maximum(pois_standardized), length=200)
     μ = mean(pois_standardized)
     σ = std(pois_standardized)
@@ -33,6 +47,8 @@ for n in 1:4
     plots[n] = h   
 end
 
-plot(plots..., layout=(2,2), size=(800,600))
+#displaying all plots together
+plot(plots..., layout=(2,2), size=(800,600)) 
 
+#saving the figure
 savefig("poisson_central_limit_theorem.png")
