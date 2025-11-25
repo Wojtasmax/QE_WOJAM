@@ -23,9 +23,8 @@ function solve(price, share, elasticity, wealth1, wealth2)
     consumption_people2_good2(p_1; p_2, x, σ, ω_1, ω_2) = (( (1 - x)^σ * p_2 ^ (-σ) ) * (p_1 * ω_2[1] + p_2 * ω_2[2]))/(x^σ * p_1^(1 - σ) + (1 - x)^σ * p_2 ^(1 - σ))
 
     equation(p_1) =  consumption_people1_good1(p_1; p_2 = price, x = share,σ = elasticity, ω_1 = wealth1, ω_2 = wealth2) + consumption_people2_good1(p_1; p_2 = price, x = share,σ = elasticity, ω_1 = wealth1, ω_2 = wealth2 ) - (wealth1[1] + wealth2[1])
-    equation_z(z) = equation(exp(z))
-    zstar = find_zero(equation_z, 0.0; autodiff = :forward)
-    return exp(zstar)
+    solution = find_zero(equation, (0.0, Inf))
+    return solution
 end 
 
 #Choosing the range of x
@@ -58,4 +57,3 @@ solutions_price_2 = [
 
 #Ploting the solutions
 plot(shares, solutions_price)
-plot!(shares, solutions_price_2)
