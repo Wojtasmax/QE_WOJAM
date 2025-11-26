@@ -40,6 +40,8 @@ for β in β_values
     @printf("%12.1e %12.1f %15.8e %20.8e %20.8e\n", β, x1_exact, x1_backslash, cond_num, rel_res)
 end
 
-# The condition number and relative residuals are higher for larger values of beta.
 # x computed with the backslash operator matches the solution of the problem for these values of beta.
-# Dokończyć bo chyba jeszcze trzeba wyjaśnić dlaczego tak się dzieje
+# The condition number and relative residual are higher for larger values of beta.
+# High condition number expected to cause numerical instability, but doesn't in this case.
+# Very small values of relative residual.
+# One might expect that with large condition number values, the numerical solution would begin to deviate from the exact one, but it's possible that the optimization of the backslash operator in Julia and/or the (near-triangular) structure of the matrix A prevent this from happening.
