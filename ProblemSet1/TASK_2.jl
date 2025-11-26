@@ -1,19 +1,13 @@
 using LinearAlgebra, Printf
 
 function build_matrix(α, β)
-    A = zeros(5, 5)
-    A[1, 1] = 1
-    A[1, 2] = -1
-    A[1, 4] = α - β
-    A[1, 5] = β
-    A[2, 2] = 1
-    A[2, 3] = -1
-    A[3, 3] = 1
-    A[3, 4] = -1
-    A[4, 4] = 1
-    A[4, 5] = -1
-    A[5, 5] = 1
-    return A
+    [
+        1  -1   0     α-β   β
+        0   1  -1     0     0
+        0   0   1    -1     0
+        0   0   0     1    -1
+        0   0   0     0     1
+    ]
 end
 
 function build_vector(α)
