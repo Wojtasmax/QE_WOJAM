@@ -1,19 +1,13 @@
 using LinearAlgebra, Printf
 
 function build_matrix(α, β)
-    A = zeros(5, 5)
-    A[1, 1] = 1
-    A[1, 2] = -1
-    A[1, 4] = α - β
-    A[1, 5] = β
-    A[2, 2] = 1
-    A[2, 3] = -1
-    A[3, 3] = 1
-    A[3, 4] = -1
-    A[4, 4] = 1
-    A[4, 5] = -1
-    A[5, 5] = 1
-    return A
+    [
+        1  -1   0     α-β   β
+        0   1  -1     0     0
+        0   0   1    -1     0
+        0   0   0     1    -1
+        0   0   0     0     1
+    ]
 end
 
 function build_vector(α)
@@ -46,6 +40,8 @@ for β in β_values
     @printf("%12.1e %12.1f %15.8e %20.8e %20.8e\n", β, x1_exact, x1_backslash, cond_num, rel_res)
 end
 
-# The condition number and relative residuals are higher for larger values of beta.
 # x computed with the backslash operator matches the solution of the problem for these values of beta.
-# Dokończyć bo chyba jeszcze trzeba wyjaśnić dlaczego tak się dzieje
+# The condition number and relative residual are higher for larger values of beta.
+# High condition number expected to cause numerical instability, but doesn't in this case.
+# Very small values of relative residual.
+# One might expect that with large condition number values, the numerical solution would begin to deviate from the exact one, but it's possible that the optimization of the backslash operator in Julia and/or the (near-triangular) structure of the matrix A prevent this from happening.
