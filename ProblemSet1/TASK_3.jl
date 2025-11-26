@@ -68,7 +68,7 @@ solutions_price_2 = [
     for x in shares
 ]
 
-#comparing prices - needs domain improvement, and more estethic taste
+#comparing prices for shares 
 plot(shares, solutions_price, maximum =1.1, label = "σ = 0.2", xlabel ="share", ylabel = "price")
 h3 = plot!(shares, solutions_price_2, maximum = 1.1, label = "σ = 5.0 ", xlabel ="share", ylabel = "price")
 

@@ -2,7 +2,7 @@
 
 julia_version = "1.11.7"
 manifest_format = "2.0"
-project_hash = "99a0346ababf9e45e7a0a38c8e104e40013cc608"
+project_hash = "cec0309cf9937d7f2d403efbda8b17ccc05198d4"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -851,9 +851,9 @@ version = "1.4.4"
 
 [[deps.Plots]]
 deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "JLFzf", "JSON", "LaTeXStrings", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "PrecompileTools", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "RelocatableFolders", "Requires", "Scratch", "Showoff", "SparseArrays", "Statistics", "StatsBase", "TOML", "UUIDs", "UnicodeFun", "Unzip"]
-git-tree-sha1 = "12ce661880f8e309569074a61d3767e5756a199f"
+git-tree-sha1 = "7b990898534ea9797bf9bf21bd086850e5d9f817"
 uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-version = "1.41.1"
+version = "1.41.2"
 
     [deps.Plots.extensions]
     FileIOExt = "FileIO"
