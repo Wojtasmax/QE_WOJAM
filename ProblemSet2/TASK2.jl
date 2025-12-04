@@ -55,13 +55,25 @@ plot(exponential_stochastic) # looks similar to stock market
 
 # helper function for later to dział ale mozna to zorbic lepiej
 
-function moments_storage(observed_burnt)
-m_1 = std(observed_burnt) #0.2548018495221319
-m_2 = cor(observed_burnt[1:399], observed_burnt[2:400]) #0.8334790574315395
-m_3 = kurtosis(observed_burnt[2:400] .- observed_burnt[1:399]) #3.3917448216937363
-moments=[m_1,m_2,m_3]
-return moments
+function moments_storage(data)
+    T = length
+    m_1 = std(data) #0.2548018495221319
+    m_2 = cor(data[1 : end - 1], observed_burnt[2:end]) #0.8334790574315395
+    m_3 = kurtosis(data[2:400] .- data[1:399]) #3.3917448216937363
+
+    moments=[m_1,m_2,m_3]
+
+    return moments
 end
+
+moments_storage(observed_burnt)
+
+m = moments_storage(observed_burnt)
+
+# displaying moments
+m[1]
+m[2]
+m[3]
 
 
 
@@ -95,45 +107,47 @@ std(test)
 
 
 
-function smm_objective(θ, observed_data, σ_L, σ_H, S)
-    Random.seed!(hash(θ)) #to chat powiedzial ze tal bedzie lepiej zamiast po prostu random.seed!(2137)
+function smm_objective(θ; observed_data, σ_L, σ_H, S)
+    Random.seed!(hash(θ)) 
     T_sim = length(observed_data)
-    T_sim_2=T_sim-100
-    m1_list=[]
-    m2_list=[]
-    m3_list=[]
+    
+    m1_list = []
+    m2_list = []
+    m3_list = []
+    
     #listy momentów dla wszystkich symulacji
-simulations=ones(T_sim_2,S)
+    simulations = ones(T_sim,S)
 
     for i in 1:S
-        simulations[:, i] =  simulate_model(θ, T_sim, σ_L, σ_H)
-        sim_m1=std(simulations[:,i]) 
-        sim_m2= cor(simulations[1:end-1, i], simulations[2:end, i]) 
+        simulations[:, i] =  simulate_model(θ, T_sim + 100, σ_L, σ_H)
+        
+        sim_m1 = std(simulations[:,i]) 
+        sim_m2 = cor(simulations[1:end-1, i], simulations[2:end, i]) 
         sim_m3 = kurtosis(simulations[2:end,i] .- simulations[1:end-1,i])
+        
         push!(m1_list, sim_m1)
         push!(m2_list, sim_m2)
         push!(m3_list,sim_m3)
     end
 
-    sim_mean_m1=mean(m1_list)
-    sim_mean_m2=mean(m2_list)
-    sim_mean_m3=mean(m3_list)
+    sim_mean_m1 = mean(m1_list)
+    sim_mean_m2 = mean(m2_list)
+    sim_mean_m3 = mean(m3_list)
 
     #średnie z tych list momentów
     
-    observed_moments=moments_storage(observed_burnt)
+    observed_moments=moments_storage(observed_data)
     #używam funkcji zeby wyciagnąć observed moments
 
     Q=(observed_moments[1]-sim_mean_m1)^2 +(observed_moments[2]-sim_mean_m2)^2 + (observed_moments[3]-sim_mean_m3)^2
 
-    return Q
-
-
+    return (Q,simulations) #TODO later delete simulations from return, now to enable check
 end   
 
 
 
-sims=smm_objective((0.9,0.8),observed,0.1,0.3,100)
+sims=smm_objective(θ,observed_burnt,σ_L,σ_H,100)
 
-
-#To działa ale: 1) powinno wsyztsko zalezec od jednego parametru wejsciowego bo etraz mam doowlania do lgobalnych zmiennych,2) NWM nadla czy to Q jest dobrze bo srendio rozumiem to poelcenieg
+#test
+plot(sims[2][:,1])
+histogram(sims[2][:,50])
