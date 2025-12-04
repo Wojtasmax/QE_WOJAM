@@ -49,9 +49,20 @@ plot(exponential_stochastic) # looks similar to stock market
 
 #moments of observed_burnt - with lag definition TODO seed is not working properly
 
+
+#nie działą bo seed musi być w funkcji to wszystko wyzej powinno byc w funkcji 
+
+
+# helper function for later to dział ale mozna to zorbic lepiej
+
+function moments_storage(observed_burnt)
 m_1 = std(observed_burnt) #0.2548018495221319
 m_2 = cor(observed_burnt[1:399], observed_burnt[2:400]) #0.8334790574315395
 m_3 = kurtosis(observed_burnt[2:400] .- observed_burnt[1:399]) #3.3917448216937363
+moments=[m_1,m_2,m_3]
+return moments
+end
+
 
 
 function simulate_model(θ, T , σ_L, σ_H)
@@ -75,22 +86,54 @@ histogram(test)
 
 std(test)
 
-#TODO create seed for this function
+
+
+
+
+
+#Olaf: zrobiłem ta funkcję 
+
+
+
 function smm_objective(θ, observed_data, σ_L, σ_H, S)
-    T = length(observed_data)
-    
-    #moments from data
-    m_1 = std(observed_data)
-    m_2 = cor(observed_data[1: length(observed_data - 1)], observed_data[2: length(observed_data)])
-    m_3 = kurtosis(observed_data[2: length(observed_data)] .- observed_data[1: length(observed_data - 1)])
+    Random.seed!(hash(θ)) #to chat powiedzial ze tal bedzie lepiej zamiast po prostu random.seed!(2137)
+    T_sim = length(observed_data)
+    T_sim_2=T_sim-100
+    m1_list=[]
+    m2_list=[]
+    m3_list=[]
+    #listy momentów dla wszystkich symulacji
+simulations=ones(T_sim_2,S)
 
-    simulations = Vector{Float64}(undef, S) # we need to store simulations in the matrix or vector of vectors?
-    for i in 1:S 
-        simulations[i] =  simulate_model(θ, T, σ_L, σ_H)
+    for i in 1:S
+        simulations[:, i] =  simulate_model(θ, T_sim, σ_L, σ_H)
+        sim_m1=std(simulations[:,i]) 
+        sim_m2= cor(simulations[1:end-1, i], simulations[2:end, i]) 
+        sim_m3 = kurtosis(simulations[2:end,i] .- simulations[1:end-1,i])
+        push!(m1_list, sim_m1)
+        push!(m2_list, sim_m2)
+        push!(m3_list,sim_m3)
     end
+
+    sim_mean_m1=mean(m1_list)
+    sim_mean_m2=mean(m2_list)
+    sim_mean_m3=mean(m3_list)
+
+    #średnie z tych list momentów
     
-    Simulation_Matrix =  
-end    
+    observed_moments=moments_storage(observed_burnt)
+    #używam funkcji zeby wyciagnąć observed moments
+
+    Q=(observed_moments[1]-sim_mean_m1)^2 +(observed_moments[2]-sim_mean_m2)^2 + (observed_moments[3]-sim_mean_m3)^2
+
+    return Q
+
+
+end   
 
 
 
+sims=smm_objective((0.9,0.8),observed,0.1,0.3,100)
+
+
+#To działa ale: 1) powinno wsyztsko zalezec od jednego parametru wejsciowego bo etraz mam doowlania do lgobalnych zmiennych,2) NWM nadla czy to Q jest dobrze bo srendio rozumiem to poelcenieg
