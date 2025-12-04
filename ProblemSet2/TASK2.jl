@@ -43,7 +43,11 @@ observed_burnt = observed[101:500]
 histogram(observed_burnt)
 plot(observed_burnt)
 
-#moments of observed_burnt - with lag definition
+#getting rid of logarythm to visualize
+exponential_stochastic = @. exp(observed_burnt)
+plot(exponential_stochastic) # looks similar to stock market 
+
+#moments of observed_burnt - with lag definition TODO seed is not working properly
 
 m_1 = std(observed_burnt) #0.2548018495221319
 m_2 = cor(observed_burnt[1:399], observed_burnt[2:400]) #0.8334790574315395
