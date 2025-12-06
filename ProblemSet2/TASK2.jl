@@ -9,6 +9,7 @@ p = 0.8
 σ_H = 0.3
 T = 500
 θ = [ρ , p]
+S = 100
 
 # creating epsilon function for parameters - gets the random epsilon
 function ϵ(p = 0.8 , σ_L = 0.1, σ_H = 0.3)
@@ -39,7 +40,7 @@ histogram(observed)
 plot(observed)
 
 #burning the initial 100 observations
-observed_burnt = observed[101:500]
+observed_burnt = observed[101:end]
 histogram(observed_burnt)
 plot(observed_burnt)
 
@@ -57,9 +58,9 @@ plot(exponential_stochastic) # looks similar to stock market
 
 function moments_storage(data)
     T = length
-    m_1 = std(data) #0.2548018495221319
-    m_2 = cor(data[1 : end - 1], observed_burnt[2:end]) #0.8334790574315395
-    m_3 = kurtosis(data[2:400] .- data[1:399]) #3.3917448216937363
+    m_1 = std(data) 
+    m_2 = cor(data[1 : end - 1], observed_burnt[2:end]) 
+    m_3 = kurtosis(data[2:400] .- data[1:399]) 
 
     moments=[m_1,m_2,m_3]
 
@@ -71,9 +72,9 @@ moments_storage(observed_burnt)
 m = moments_storage(observed_burnt)
 
 # displaying moments
-m[1]
-m[2]
-m[3]
+m[1] # 0.27289655729182555
+m[2] # 0.8539455367994457
+m[3] # 3.443869988098574
 
 
 
@@ -100,14 +101,7 @@ std(test)
 
 
 
-
-
-
-#Olaf: zrobiłem ta funkcję 
-
-
-
-function smm_objective(θ; observed_data, σ_L, σ_H, S)
+function smm_objective(θ::Vector, gradient::Vector, observed_data::Vector, σ_L::Float64, σ_H::Float64, S::Int)
     Random.seed!(hash(θ)) 
     T_sim = length(observed_data)
     
@@ -141,13 +135,71 @@ function smm_objective(θ; observed_data, σ_L, σ_H, S)
 
     Q=(observed_moments[1]-sim_mean_m1)^2 +(observed_moments[2]-sim_mean_m2)^2 + (observed_moments[3]-sim_mean_m3)^2
 
-    return (Q,simulations) #TODO later delete simulations from return, now to enable check
+    return Q # (Q,simulations) TODO later delete simulations from return, now to enable check
 end   
 
 
-
-sims=smm_objective(θ,observed_burnt,σ_L,σ_H,100)
+smm_objective(θ,observed_burnt, σ_L, σ_H,100)
 
 #test
-plot(sims[2][:,1])
-histogram(sims[2][:,50])
+#plot(sims[2][:,1])
+#histogram(sims[2][:,50])
+
+# I did optimization and visual analysis
+
+opt = NLopt.Opt(:LN_COBYLA, 2)
+
+## Define the objective function:
+NLopt.min_objective!(opt, (θ,gradient)->smm_objective(θ,observed_burnt, σ_L,σ_H, S))
+
+## Define the lower bounds for the two parameters:
+opt.lower_bounds = [0.5, 0.5] 
+## Define the upper bounds for the two parameters:
+opt.upper_bounds = [0.99, 0.95]   
+## Define the stopping criteria:
+opt.maxeval      = 2000
+opt.xtol_rel     = 1e-10     
+## Perform optimization on the object defined and the initial guess:
+min_f, θ_optim, ret = NLopt.optimize(opt, [0.85, 0.7])
+
+# comparison of optimized parameters vs real parameters - pretty close i guess but is it enough?
+println(θ_optim) # θ_optim = [ρ =  0.8327172318709358,p = 0.7652621680977589]
+println(θ)       # θ       = [ρ =  0.9, p = 0.8]
+
+#simulating model with estimated theta
+simulated_series = simulate_model(θ_optim, T, σ_L, σ_H)
+
+# setting some trash theta to check if there is a difference for optimized theta
+trash = [0.2, 0.5]
+trash_series = simulate_model(trash, T, σ_L, σ_H)
+
+# plotting series for comparison. We plot series with trash theta so we can compare if there is a value added of optimization
+plot(observed_burnt[1:200], label = "observed series")
+plot!(simulated_series[1:200], label = "simulated series")
+
+#We plot series with trash theta so we can compare if there is a value added of optimization
+plot(observed_burnt[1:200], label = "observed series",normalize=:pdf)
+plot!(trash_series[1:200], label = "trash series", color = "green",normalize=:pdf)
+
+#histograms of the data
+histogram(observed_burnt, label = "observed series", normalize=:pdf, alpha = 0.6)
+histogram!(simulated_series, label = " simulated series", normalize=:pdf, alpha = 0.5)
+#histogram!(trash_series, label = "trash series", normalize=:pdf, alpha = 0.1)   # we can compare trash series distribution optionally
+
+
+#calculating Lags 
+
+Δ_observed  = observed_burnt[2 : end] .- observed_burnt[1 : end - 1]
+Δ_simulated = simulated_series[2 : end] .- simulated_series[1 : end - 1]
+Δ_trash     = trash_series[2:end] .- trash_series[1 : end-1] #also creating trash lag for comparison
+
+
+#histograms of Δlog(yt)
+histogram(Δ_observed, label = "observed series lag Δlog(y)", normalize=:pdf, alpha = 0.6)
+histogram!(Δ_simulated, label = " simulated series lag Δlog(y)", normalize=:pdf, alpha = 0.5)
+histogram!(Δ_trash, label = "trash series lag Δlog(y)", normalize=:pdf, alpha = 0.5, color ="green") #additionaly comparing to trash
+
+#estimated parameters reproduce the key features of the observed data, because the shape is similar
+# TODO do a t-test or whatever distribution statistical test to compare the distributions
+# TODO add labels, improve esthetically
+# TODO bonus  
