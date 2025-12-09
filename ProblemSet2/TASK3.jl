@@ -103,8 +103,25 @@ function find_initial_consumption(T, parameters)
     return exp(z_star)
 end
 
-my_model = model_parameters(0.5);
-find_initial_consumption(50, my_model);
+my_model_1 = model_parameters(0.5);
+c_1, k_1 = simulate_path(find_initial_consumption(100, my_model_1),100,my_model_1);
 
-c_1, k_1 = simulate_path(find_initial_consumption(50, my_model),50,my_model);
+my_model_2 = model_parameters(2);
+c_2, k_2 = simulate_path(find_initial_consumption(100, my_model_2),100,my_model_2);
 
+t = 0:100;
+
+
+
+
+k_ss = fill(my_model_1.khat, 101)
+p1 = plot(
+    t, k_1,
+    label = "γ = 0.5",
+    xlabel = "t",
+    ylabel = "Capital kₜ",
+    lw = 2,
+)
+plot!(p1, t, k_2, label = "γ = 2.0", lw = 2)
+plot!(p1, t, k_ss,label = "Steady state", lw = 2)
+title!(p1, "Capital Transition Dynamics")
