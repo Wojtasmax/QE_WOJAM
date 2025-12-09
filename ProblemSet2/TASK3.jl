@@ -1,4 +1,4 @@
-using Distributions, Plots, NLsolve
+using Distributions, Plots, NLsolve, Roots
 
 
 function model_parameters(γ;
@@ -38,27 +38,73 @@ function transition_equation(res, x, T, parameters)
     return res
 end
 
-function solve_transition_path(T, parameters)
+function simulate_path(c0, T, parameters)
+    A = parameters.A
+    δ = parameters.δ
+    β = parameters.β
+    α = parameters.α
+    γ = parameters.γ
 
-    chat = parameters.chat
-    khat = parameters.khat
-    k0 = parameters.k0
+    c = zeros(T+1)
+    k = zeros(T+1)
 
-    c_guess = fill(chat, T+1)
-    k_guess = range(k0, khat, length=T+1)[2:end]
-    x0 = vcat(c_guess, k_guess)
+    c[1] = c0
+    k[1] = parameters.k0
 
-    sol = nlsolve((res, x) -> transition_equation(res, x, T, parameters), x0,  method=:newton)
+    for t in 1:T
 
-    if sol.converged
-        println("Converged")
-    else 
-        println("Not converged")
+        # capital evolution
+        k[t+1] = (1 - δ)*k[t] + A*k[t]^α - c[t]
+
+        if k[t+1] <= 0
+            # return huge numbers so residual is very wrong → solver avoids this path
+            return fill(10, T+1), fill(10, T+1)
+        end
+
+        # Euler equation
+        c[t+1] = (β * c[t]^γ * (α*A*k[t+1]^(α-1) + 1 - δ))^(1/γ)
+
     end
 
-    return sol
+    return c, k
+end
+
+function shooting_residual(z, T, parameters)
+    c0 = exp(z)  
+    cT, kT = simulate_path(c0, T, parameters)
+    return cT[end] - parameters.chat
 end
 
 
-my_model = model_parameters(0.5)
-solve_transition_path(200, my_model)
+function find_initial_consumption(T, parameters)
+    f(z) = shooting_residual(z, T, parameters)
+
+    # initial bracket (in log space)
+    z_low = log(0.1 * parameters.chat)
+    z_high = log(2.0 * parameters.chat)
+
+    # Expand bracket until signs differ (simple heuristic)
+    for i in 1:20
+        if f(z_low) * f(z_high) < 0
+            break
+        end
+        z_low -= 0.5
+        z_high += 0.5
+    end
+
+    # If bracket found, use Brent; otherwise fall back to find_zero with Order1 (Newton)
+    if f(z_low) * f(z_high) < 0
+        z_star = find_zero(f, (z_low, z_high), Bisection())
+    else
+        # fallback: Newton with initial guess log(chat)
+        z_star = find_zero(f, log(parameters.chat), Order1())
+    end
+
+    return exp(z_star)
+end
+
+my_model = model_parameters(0.5);
+find_initial_consumption(50, my_model);
+
+c_1, k_1 = simulate_path(find_initial_consumption(50, my_model),50,my_model);
+
