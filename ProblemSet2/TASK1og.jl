@@ -4,12 +4,20 @@ function foc_integral(ω, W, Rf, γ, μ, σ)
 end
 # test it for γ=0
 # first naive check:
-for i in 1:5
-ω, W, Rf, μ, σ=rand(), 200*rand(), 3*rand()+1,rand(), 2*rand()
-print("Approximate error=",foc_integral(ω, W, Rf, 0.0, μ, σ)-(exp(μ+0.5*σ^2)-Rf), "\n")
+function expected_result(μ, σ, Rf)
+    return exp(μ+0.5*σ^2)-Rf
 end
-# now build in julia function
-println(isapprox(foc_integral(ω, W, Rf, 0.0, μ, σ), exp(μ+0.5*σ^2)-Rf, atol=1e-5) ? "The functions are almost equal" : "The functions differ substantially")
+function are_they_equal()
+    for i in 1:20
+        ω, W, Rf, μ, σ=rand(), 200*rand(), 3*rand()+1,rand(), 2*rand()
+        if !isapprox(foc_integral(ω, W, Rf, 0.0, μ, σ), expected_result(μ,σ,Rf); atol=1e-8, rtol=1e-6)
+                return false
+                break
+        end
+    end
+    return true
+end
+print(are_they_equal() ? "The functions are approximately equal\n" : "The functions differ substantially\n")
 # 1.3
 function optimal_portfolio(W, Rf, γ, μ, σ)
     f(ω) = foc_integral(ω, W, Rf, γ, μ, σ)
