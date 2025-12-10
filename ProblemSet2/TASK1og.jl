@@ -13,9 +13,7 @@ println(isapprox(foc_integral(ω, W, Rf, 0.0, μ, σ), exp(μ+0.5*σ^2)-Rf, atol
 # 1.3
 function optimal_portfolio(W, Rf, γ, μ, σ)
     f(ω) = foc_integral(ω, W, Rf, γ, μ, σ)
-    candid=find_zero(f, 0.5, Order1())
-    ω_star=max(0,min(candid,1))
-    # our constraints require ω* to be in [0,1]
+    ω_star=find_zero(f, 0.5, Order1())
     return ω_star
 end
 # test it for some parameters
