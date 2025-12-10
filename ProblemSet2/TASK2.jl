@@ -98,7 +98,7 @@ std(test)
 
 
 function smm_objective(θ::Vector, gradient::Vector, observed_data::Vector, σ_L::Float64, σ_H::Float64, S::Int)
-    Random.seed!(hash(θ)) 
+    Random.seed!(2024) 
     T_sim = length(observed_data)
     
     m1_list = []
