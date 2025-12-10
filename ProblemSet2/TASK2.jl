@@ -48,13 +48,9 @@ plot(observed_burnt)
 exponential_stochastic = @. exp(observed_burnt)
 plot(exponential_stochastic) # looks similar to stock market 
 
-#moments of observed_burnt - with lag definition TODO seed is not working properly
 
 
-#nie działą bo seed musi być w funkcji to wszystko wyzej powinno byc w funkcji 
-
-
-# helper function for later to dział ale mozna to zorbic lepiej
+# helper function for later
 
 function moments_storage(data)
     T = length
@@ -109,7 +105,7 @@ function smm_objective(θ::Vector, gradient::Vector, observed_data::Vector, σ_L
     m2_list = []
     m3_list = []
     
-    #listy momentów dla wszystkich symulacji
+    #list of moments 
     simulations = ones(T_sim,S)
 
     for i in 1:S
@@ -128,14 +124,13 @@ function smm_objective(θ::Vector, gradient::Vector, observed_data::Vector, σ_L
     sim_mean_m2 = mean(m2_list)
     sim_mean_m3 = mean(m3_list)
 
-    #średnie z tych list momentów
+    #means of those moments
     
     observed_moments=moments_storage(observed_data)
-    #używam funkcji zeby wyciagnąć observed moments
-
+    #use the helper function to get the 'empirical' moments
     Q=(observed_moments[1]-sim_mean_m1)^2 +(observed_moments[2]-sim_mean_m2)^2 + (observed_moments[3]-sim_mean_m3)^2
 
-    return Q # (Q,simulations) TODO later delete simulations from return, now to enable check
+    return Q 
 end   
 
 
@@ -195,11 +190,26 @@ histogram!(simulated_series, label = " simulated series", normalize=:pdf, alpha 
 
 
 #histograms of Δlog(yt)
-histogram(Δ_observed, label = "observed series lag Δlog(y)", normalize=:pdf, alpha = 0.6)
-histogram!(Δ_simulated, label = " simulated series lag Δlog(y)", normalize=:pdf, alpha = 0.5)
-histogram!(Δ_trash, label = "trash series lag Δlog(y)", normalize=:pdf, alpha = 0.5, color ="green") #additionaly comparing to trash
+histogram(Δ_observed, 
+          label = "Observed series", 
+          normalize = :pdf, 
+          alpha = 0.6, 
+          bins = 50, 
+          title = "(Kurtosis)",
+          xlabel = " (Δ log y)",
+          ylabel = "(PDF)",
+          legend = :topright)
+histogram!(Δ_simulated, 
+           label = "simulated series ρ^, p^", 
+           normalize = :pdf, 
+           alpha = 0.5,
+           bins = 50)
+histogram!(Δ_trash, 
+           label = "Trash Series ( ρ=0.2, p=0.5)", 
+           normalize = :pdf, 
+           alpha = 0.2, 
+           bins = 50, 
+           color = "green")
 
 #estimated parameters reproduce the key features of the observed data, because the shape is similar
-# TODO do a t-test or whatever distribution statistical test to compare the distributions
-# TODO add labels, improve esthetically
-# TODO bonus  
+
