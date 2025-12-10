@@ -41,8 +41,9 @@ end
 
 
 # 1: Julia’s backslash operator
-
+time1=@elapsed begin
 result1 = A\b
+end
 weights1 = result1[1:end-2]
 
 # sanity check czy coś
@@ -70,26 +71,35 @@ check_diag_dominance(gramA)
 
 # It seems that the A^T A matrix is not diagonally dominant (it doesnt look so anyway)
 # So there is no need to write this method indeed the custom one returns nonsense
-result2=jacobi(gramA, A'*b)
+time2=@elapsed begin
+result2=jacobi(gramA, A'*b, maxiter=10_000,)
+end
 weights2=result2[1:end-2]
 sanity_check(weights2)
 
 # 3 Conjugate Gradient method (CG) 
 issymmetric(gramA)
 isposdef(gramA)
-result3=cg(gramA, A'*b)
+time3=@elapsed begin
+result3, conv3=cg(gramA, A'*b, maxiter=10_000, log=true)
+end
 weights3=result3[1:end-2]
 sanity_check(weights3)
 
 # 4 GMRES (the generalized minimal residual method)
-result4=gmres(A, b)
+#I added maxiterations=10 00 + history to every method
+time_4= @elapsed begin
+result4, conv4=gmres(A, b, maxiter = 10_000, log = true)
+end
 weights4=result4[1:end-2]
 sanity_check(weights4)
 
 # 5 preconditioned system P−1Ax = P−1b using GMRES
 P=Diagonal(append!(diag(cov_matrix), [1,1]))
 Pm1=inv(P)
-result5=gmres(Pm1*A, Pm1*b)
+time5=@elapsed begin
+result5,conv5=gmres(Pm1*A, Pm1*b, maxiter=10_100, log=true)
+end
 weights5=result5[1:end-2]
 sanity_check(weights5)
 
@@ -97,11 +107,6 @@ sanity_check(weights5)
 result55=gmres(A, b, Pl=P)
 result55-result5
 
-# TODO For each method, report:
-# • Number of iterations to converge (if applicable)
-# • Total computational time
-# • Relative residual norm ∥Ax−b∥^2
-# TODO
 
 # 6. Report the optimal portfolio weights w obtained from each method. 
 # Verify and report that the weights sum to 1 and that the expected return constraint is satisfied. 
@@ -129,6 +134,42 @@ for (key, value) in results
     rel_residual_norm = norm(A * value - b) / norm(b)
     print("*** Method $key ***\n Relative residual norm: $rel_residual_norm\n\n")
 end
+
+#conv is a itertaivesolver.history object; that is it has attribiutes:
+#conv.isconverged=did a method converge, conv.iters=number of iterations, conv.residuals number of all residuals after every iterations
+#perhaps i should've named it history instead 
+#I cant find the way to calculate the number of iteration for backslash=not an iterative method 
+#thearofre it wont be shown
+#in Iterativesolvers there isnt a method for this for jacobi or other stationary methods
+
+
+
+
+
+time=Dict("backlash"=>time1,
+          "jacobi"=>time2,
+          "cg"=>time3,
+          "gmres"=>time_4,
+          "preconditioned_gmre"=>time5)
+for (key, value) in time
+    print("*** Method $key *** \n Time of computation :", value, "\n\n")
+end
+
+
+#For some reason this prints out the times in descending order
+convergance=Dict(
+                  "cg"=>conv3,
+                  "gmres"=>conv4,
+                  "preconditioned_gmres"=>conv5)
+for (key,value) in convergance
+    converged=value.isconverged
+    iteration_number=value.iters
+    print("*** Method $key *** \n Does it converge?", " ",converged,"\n
+ Number of Iterations:",iteration_number," \n\n")
+end
+
+
+
 
 # Choose your preferred method and solve the system for 50 different values of µ¯ ∈ [0.01, 0.10]. 
 # For each new target return, use the previous solution as the initial guess for the iterative method.
@@ -167,4 +208,21 @@ plot(expected_returns, sqrt.(portfolio_variances),
 ███████╗███████╗╚██████╗██████╔╝
 ╚══════╝╚══════╝ ╚═════╝╚═════╝ 
 ────────────────────────────────
+
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠿⣿⡿⠻⣟⣻⣻⠿⣿⣿⣿⣿⣿⣿⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⢿⣿⣾⣿⣿⣿⣷⣜⢉⣟⣾⡷⣽⡻⣿⣿⣿⣿⣿
+⣿⣿⣿⣿⣿⡿⣡⣾⣿⣿⣿⣿⡿⢿⣿⣷⡩⡽⣛⢷⣿⡪⡻⣿⣿⣿
+⣿⣿⣿⣿⡟⡾⡋⣼⣿⡿⠛⣩⣾⣿⡿⣫⣶⣿⡾⣿⣮⣿⡦⡙⣿⣿
+⣿⣿⣿⣿⢁⠞⣼⡏⡷⣡⡬⡿⣹⡿⣹⣿⢹⣧⢿⢨⡹⢨⡺⢷⡹⣿
+⣿⣿⣿⡟⢪⣸⣿⠸⣉⡟⠜⡵⡟⣼⣿⡇⣿⣿⣿⢸⡍⣔⢸⣸⢷⢹
+⣿⣿⣿⣷⣎⠟⢸⣸⣭⠁⡞⣁⡇⣿⡿⣹⣿⣿⡻⠀⡇⣿⠎⢼⠺⢸
+⣿⣿⣿⣿⡛⠸⡇⢹⡏⠀⠈⠭⠘⡘⢣⠟⢡⠃⠑⠀⢸⠏⠚⠘⡆⣸
+⣿⣿⣿⣿⣷⡀⠩⡸⠁⢲⣤⣼⣷⠃⣀⡄⣠⣀⣸⠆⠀⠀⡄⣸⣷⣿
+⣿⣿⣿⣿⣿⣿⡦⠀⠨⡂⠨⣛⣧⣾⣯⢾⣿⣛⠁⠀⠀⠀⣿⣿⣿⣿
+⣿⣿⣿⣿⣿⡿⣡⣶⣿⣷⣶⡌⣙⣛⣓⣾⡭⠁⠀⠀⢠⢰⣿⣿⣿⣿
+⣿⣿⣿⡿⢏⣾⣿⣿⣿⣿⣿⣷⠘⠿⣻⣥⡀⣀⣴⣧⣿⣿⣿⣿⣿⣿
+⣿⣟⣽⠊⣾⠟⠀⢀⢹⣿⣿⣿⣠⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+⡿⠾⠇⠀⣿⡐⣨⣧⣾⣿⣿⡇⠈⢻⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+⡗⡟⠀⠀⣿⣿⣾⣿⣿⣿⠉⢰⡄⠘⢷⣮⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+
 =#
