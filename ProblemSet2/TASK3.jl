@@ -159,7 +159,7 @@ p2 = plot(
     xlabel="t",
     ylabel="cₜ / yₜ",
     lw=2,
-    title="Consumption Rate c(t)/y(t)"
+    title="Consumption Rate c(t)/y(t) Dynamics"
 )
 
 plot!(p2, t, c_2 ./ y_2, label="γ = 2.0", lw=2)                  # second γ path
@@ -173,7 +173,7 @@ p3 = plot(
     xlabel="t",
     ylabel="iₜ / yₜ",
     lw=2,
-    title="Investment Rate i(t)/y(t)"
+    title="Investment Rate i(t)/y(t) Dynamics"
 )
 
 plot!(p3, t, i_2 ./ y_2, label="γ = 2.0", lw=2)                  # second γ path
@@ -182,3 +182,7 @@ plot!(p3, fill(i_ss_rate, length(t)),                            # steady-state 
 
 # Display all 3 plots in a vertical layout
 plot(p1, p2, p3, layout=(3,1), size=(800,1000))
+
+
+# Our results are logical - if we increase the relative risk aversion, we prefer to consume more now and therefore we will get higher consumption rate, lower investment/Savings
+# rate, as well as slower approach to the steady state. However, in the long run both approaches converge to the same position.
