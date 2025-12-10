@@ -111,17 +111,74 @@ c_2, k_2 = simulate_path(find_initial_consumption(100, my_model_2),100,my_model_
 
 t = 0:100;
 
+# Unpack parameters from the model
+A = my_model_1.A
+α = my_model_1.α
+δ = my_model_1.δ
+
+# Compute output paths y(t) for both γ values
+y_1 = A .* k_1.^α         # output for γ = 0.5
+y_2 = A .* k_2.^α         # output for γ = 2.0
+
+# Compute investment paths i(t) = y(t) - c(t)
+i_1 = y_1 .- c_1          # investment for γ = 0.5
+i_2 = y_2 .- c_2          # investment for γ = 2.0
+
+# Steady-state capital as a horizontal line
+k_ss = fill(my_model_1.khat, length(t))
+
+# Steady-state values for output, consumption, investment
+y_ss = A * my_model_1.khat^α
+c_ss = my_model_1.chat
+i_ss = δ * my_model_1.khat
+
+# Steady-state ratios needed for plots c(t)/y(t) and i(t)/y(t)
+c_ss_rate = c_ss / y_ss   # steady-state consumption rate
+i_ss_rate = i_ss / y_ss   # steady-state investment rate
 
 
-
-k_ss = fill(my_model_1.khat, 101)
+# PLOT 1: CAPITAL
 p1 = plot(
     t, k_1,
     label = "γ = 0.5",
     xlabel = "t",
-    ylabel = "Capital kₜ",
+    ylabel = "kₜ",
     lw = 2,
+    title = "Capital Transition Dynamics"
 )
-plot!(p1, t, k_2, label = "γ = 2.0", lw = 2)
-plot!(p1, t, k_ss,label = "Steady state", lw = 2)
-title!(p1, "Capital Transition Dynamics")
+
+plot!(p1, t, k_2, label="γ = 2.0", lw=2)                         # second γ path
+plot!(p1, fill(my_model_1.khat, length(t)),                      # steady-state line
+      label="Steady state", lw=2, ls=:dash)
+
+
+# PLOT 2: CONSUMPTION RATE 
+p2 = plot(
+    t, c_1 ./ y_1,
+    label="γ = 0.5",
+    xlabel="t",
+    ylabel="cₜ / yₜ",
+    lw=2,
+    title="Consumption Rate c(t)/y(t)"
+)
+
+plot!(p2, t, c_2 ./ y_2, label="γ = 2.0", lw=2)                  # second γ path
+plot!(p2, fill(c_ss_rate, length(t)),                            # steady-state ratio
+      label="Steady state", lw=2, ls=:dash)
+
+# PLOT 3: INVESTMENT RATE
+p3 = plot(
+    t, i_1 ./ y_1,
+    label="γ = 0.5",
+    xlabel="t",
+    ylabel="iₜ / yₜ",
+    lw=2,
+    title="Investment Rate i(t)/y(t)"
+)
+
+plot!(p3, t, i_2 ./ y_2, label="γ = 2.0", lw=2)                  # second γ path
+plot!(p3, fill(i_ss_rate, length(t)),                            # steady-state ratio
+      label="Steady state", lw=2, ls=:dash)
+
+# Display all 3 plots in a vertical layout
+plot(p1, p2, p3, layout=(3,1), size=(800,1000))
