@@ -132,3 +132,32 @@ end;
 
 ybar0 = 1.0
 a_grid, y, V, Ap, C = solve_model(ybar0);  
+
+
+
+
+
+
+
+##########################################################3
+# wykresy dla j=20,30,40,50,60
+
+p1 = plot(a_grid, C[:,20], label="j=20", xlabel="a", ylabel="c", title="c_j(a)")
+plot!(p1, a_grid, C[:,30], label="j=30")
+plot!(p1, a_grid, C[:,40], label="j=40")
+plot!(p1, a_grid, C[:,50], label="j=50")
+plot!(p1, a_grid, C[:,60], label="j=60")
+
+p2 = plot(a_grid, Ap[:,20], label="j=20", xlabel="a", ylabel="a'", title="a'_j(a)")
+plot!(p2, a_grid, Ap[:,30], label="j=30")
+plot!(p2, a_grid, Ap[:,40], label="j=40")
+plot!(p2, a_grid, Ap[:,50], label="j=50")
+plot!(p2, a_grid, Ap[:,60], label="j=60")
+
+p3 = plot(a_grid, V[:,20], label="j=20", xlabel="a", ylabel="V", title="V_j(a)")
+plot!(p3, a_grid, V[:,30], label="j=30")
+plot!(p3, a_grid, V[:,40], label="j=40")
+plot!(p3, a_grid, V[:,50], label="j=50")
+plot!(p3, a_grid, V[:,60], label="j=60")
+
+display(plot(p1, p2, p3, layout=(1,3)))
