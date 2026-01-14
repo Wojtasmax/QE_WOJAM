@@ -26,3 +26,109 @@ for j in 1:J
 end
 π[J] = 1.0
 
+
+
+#################################2
+function solve_model(ybar)
+
+    # dochód y_j
+    y = zeros(J)
+    for j in 1:J
+        if j <= 40
+            y[j] = ybar * (0.8 + 0.02*j)
+        else
+            y[j] = ybar * 0.3
+        end
+    end
+
+    # AMAX WSZYSTKO OSZCZEDZAMY
+    a_tmp = 0.0
+    amax = 0.0
+    for j in 1:J
+        a_tmp = (1.0 + r)*a_tmp + y[j]
+        if a_tmp > amax
+            amax = a_tmp
+        end
+    end
+
+    #GRID
+    a_grid = zeros(grid_size)
+    for i in 1:grid_size
+        t = (i-1)/(grid_size-1)
+        a_grid[i] = amax * t^2
+    end
+
+    # tablice
+    V  = zeros(grid_size, J)
+    Ap = zeros(grid_size, J)
+    C  = zeros(grid_size, J)
+
+    #ZGON
+    j = J
+    for ia in 1:grid_size
+        a = a_grid[ia]
+        res = (1.0 + r)*a + y[j]
+
+        bestV  = -1e100
+        bestap = 0.0
+        bestc  = 0.0
+
+        for iap in 1:grid_size
+            ap = a_grid[iap]
+            if ap >= res
+                break
+            end
+
+            c = res - ap
+            val = u(c) + β * phi(ap)
+
+            if val > bestV
+                bestV  = val
+                bestap = ap
+                bestc  = c
+            end
+        end
+
+        V[ia, j]  = bestV
+        Ap[ia, j] = bestap
+        C[ia, j]  = bestc
+    end
+
+    # cofanie w czasie
+    for j in (J-1):-1:1
+        for ia in 1:grid_size
+            a = a_grid[ia]
+            res = (1.0 + r)*a + y[j]
+
+            bestV  = -1e100
+            bestap = 0.0
+            bestc  = 0.0
+
+            for iap in 1:grid_size
+                ap = a_grid[iap]
+                if ap >= res
+                    break
+                end
+
+                c = res - ap
+                cont = (1.0 - π[j]) * V[iap, j+1] + π[j] * phi(ap)
+                val = u(c) + β * cont
+
+                if val > bestV
+                    bestV  = val
+                    bestap = ap
+                    bestc  = c
+                end
+            end
+
+            V[ia, j]  = bestV
+            Ap[ia, j] = bestap
+            C[ia, j]  = bestc
+        end
+    end
+
+    return a_grid, y, V, Ap, C
+end;
+
+ybar0 = 1.0
+a_grid, y, V, Ap, C = solve_model(ybar0);  
