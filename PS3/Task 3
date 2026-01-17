@@ -1,163 +1,136 @@
-using Plots
+# === PSET 3, Zadanie 3 — przygotowanie parametrów w NamedTuple `par` ===
 
-################################################## 1
-
-J  = 60
-γ  = 2.0
-γb = 1.0
-β  = 0.96
-r  = 0.04167
-
-θ    = 0.5
-abar = 2.0
-
-grid_size = 500   
-
-
-u(c) = (c^(1.0-γ)) / (1.0-γ)
-
-#dla  γb=1 -> log
-phi(ap) = θ * log(ap + abar)
+# 1) #This is  a tuple that contians paraneters. we use par.x to use its contents if one uses just 'x' it wont work
+par = (
+    J  = 60,
+    γ  = 2.0,
+    γb = 1.0,
+    β  = 0.96,
+    r  = 0.04167,   # tak, by β(1+r) ≈ 1
+    θ  = 0.5,
+    ā  = 2.0,       # shift w bequest: (a' + ā)
+    ȳ  = 1.0,       # skala dochodu
+    n_a = 500
+)
 
 
-π = zeros(J)
-for j in 1:J
-    π[j] = min(0.0005 * (1.14^j), 1.0)
+
+# utility u(c) = c^(1-γ)/(1-γ)
+function u(c, par)
+    return c^(1 - par.γ) / (1 - par.γ)
 end
-π[J] = 1.0
+
+#dla γb=1 -> log
+function bequest(a, par)
+    if par.γb == 1.0
+        return par.θ * log(a + par.ā)
+    else
+        return par.θ * (a + par.ā)^(1 - par.γb) / (1 - par.γb)
+    end
+end
 
 
-
-#################################2
-function solve_model(ybar)
-
-    # dochód y_j
-    y = zeros(J)
-    for j in 1:J
+function Labor_income(par)
+    y = zeros(par.J)
+    for j in 1:par.J
         if j <= 40
-            y[j] = ybar * (0.8 + 0.02*j)
+            y[j] = par.ȳ * (0.8 + 0.02*j)
         else
-            y[j] = ybar * 0.3
+            y[j] = par.ȳ * 0.3
         end
     end
+    return y
+end
 
-    # AMAX WSZYSTKO OSZCZEDZAMY
-    a_tmp = 0.0
-    amax = 0.0
-    for j in 1:J
-        a_tmp = (1.0 + r)*a_tmp + y[j]
-        if a_tmp > amax
-            amax = a_tmp
-        end
+
+
+function death_prob(par)
+    π=zeros(par.J)
+    for i in 1:par.J
+        π[i]=min(0.0005*1.14^i,1)
     end
+    π[par.J]=1
+    return π
+end
 
-    #GRID
-    a_grid = zeros(grid_size)
-    for i in 1:grid_size
-        t = (i-1)/(grid_size-1)
-        a_grid[i] = amax * t^2
+#if we consume nothing then 0+a'=(1+r)a+yj 
+function find_a_max(par,y,a1=0.0)
+    a_next=0.0
+    a=a1
+    for i in 1:par.J
+        a_next=(1+par.r)*a+y[i]
+        a=a_next
     end
+    return a_next
+end
 
-    # tablice
-    V  = zeros(grid_size, J)
-    Ap = zeros(grid_size, J)
-    C  = zeros(grid_size, J)
+#find the max value
+y=Labor_income(par)
+a_max=find_a_max(par,y)
+par = merge(par, (a_max = a_max,)) #add to par
 
-    #ZGON
-    j = J
-    for ia in 1:grid_size
-        a = a_grid[ia]
-        res = (1.0 + r)*a + y[j]
 
-        bestV  = -1e100
-        bestap = 0.0
-        bestc  = 0.0
-
-        for iap in 1:grid_size
-            ap = a_grid[iap]
-            if ap >= res
-                break
-            end
-
-            c = res - ap
-            val = u(c) + β * phi(ap)
-
-            if val > bestV
-                bestV  = val
-                bestap = ap
-                bestc  = c
-            end
-        end
-
-        V[ia, j]  = bestV
-        Ap[ia, j] = bestap
-        C[ia, j]  = bestc
+# create the grid
+function get_a_grid(par)
+    a_grid=ones(par.n_a)
+    for i in 1:par.n_a
+        a_grid[i]=par.a_max*((i-1)/par.n_a-1)^2
     end
+    return a_grid
+end
+a_grid=get_a_grid(par) #add to par
+par=merge(par,(a_grid=a_grid,))
 
-    # cofanie w czasie
-    for j in (J-1):-1:1
-        for ia in 1:grid_size
-            a = a_grid[ia]
-            res = (1.0 + r)*a + y[j]
-
-            bestV  = -1e100
-            bestap = 0.0
-            bestc  = 0.0
-
-            for iap in 1:grid_size
-                ap = a_grid[iap]
-                if ap >= res
-                    break
-                end
-
-                c = res - ap
-                cont = (1.0 - π[j]) * V[iap, j+1] + π[j] * phi(ap)
-                val = u(c) + β * cont
-
-                if val > bestV
-                    bestV  = val
-                    bestap = ap
-                    bestc  = c
+#============2===============#
+#i write lots of comments for myslef as not to get lost this is hard actaully
+function solve_model(par,y,π)
+    V = zeros(par.n_a, par.J)      # Value function
+    pol_c = zeros(par.n_a, par.J)  # how much to consume given your assets
+    pol_ap = zeros(par.n_a, par.J) # how much to save when agent is x years old
+    #terminal period 
+    for (i,a) in enumerate(par.a_grid) #for every possible asset
+        cash = (1 + par.r) * a + y[par.J] #total money we have
+        max_v=-Inf
+        for (j, ap) in enumerate(par.a_grid) #loop trough ALL POSSIBLE SAVING CHOICES AVAILIBLE RN 
+            if ap<=cash 
+                c=cash-ap #cash= right side of budget constraint so ap=a'
+                if c>0
+                    value=u(c,par)+par.β*bequest(ap,par) #total utility
+                    if value>max_v 
+                        max_v=value
+                        pol_c[i, par.J] = c
+                        pol_ap[i, par.J] = ap
+                    end
                 end
             end
-
-            V[ia, j]  = bestV
-            Ap[ia, j] = bestap
-            C[ia, j]  = bestc
+        end
+        V[i,par.J]=max_v
+    end
+    
+    for j in (par.J-1):-1:1 #loop backwards trough years
+        for (i, a) in enumerate(par.a_grid)
+            cash = (1 + par.r) * a + y[j]
+            max_v = -Inf
+            for (j_ap, ap) in enumerate(par.a_grid) #this is similar to what i've done before but now we have expected future value cause we dont imiedietly die
+                if ap <= cash
+                    c = cash - ap
+                    if c > 0
+                        continuation = (1 - π[j]) * V[j_ap, j+1] + π[j] * bequest(ap, par) #we dont die*value function at next year + we die and we leave  a bequest
+                        value = u(c, par) + par.β * continuation #total value comsuption now + contuantion discounted 
+                        if value > max_v
+                            max_v = value
+                            pol_c[i, j] = c              #this is the same as in terminal state
+                            pol_ap[i, j] = ap            #
+                        end
+                    end
+                end
+            end
+            V[i, j] = max_v
         end
     end
+    
+    return V, pol_c, pol_ap
+end
 
-    return a_grid, y, V, Ap, C
-end;
+V, pol_c, pol_ap = solve_model(par, y, π)
 
-ybar0 = 1.0
-a_grid, y, V, Ap, C = solve_model(ybar0);  
-
-
-
-
-
-
-
-##########################################################3
-# wykresy dla j=20,30,40,50,60
-
-p1 = plot(a_grid, C[:,20], label="j=20", xlabel="a", ylabel="c", title="c_j(a)")
-plot!(p1, a_grid, C[:,30], label="j=30")
-plot!(p1, a_grid, C[:,40], label="j=40")
-plot!(p1, a_grid, C[:,50], label="j=50")
-plot!(p1, a_grid, C[:,60], label="j=60")
-
-p2 = plot(a_grid, Ap[:,20], label="j=20", xlabel="a", ylabel="a'", title="a'_j(a)")
-plot!(p2, a_grid, Ap[:,30], label="j=30")
-plot!(p2, a_grid, Ap[:,40], label="j=40")
-plot!(p2, a_grid, Ap[:,50], label="j=50")
-plot!(p2, a_grid, Ap[:,60], label="j=60")
-
-p3 = plot(a_grid, V[:,20], label="j=20", xlabel="a", ylabel="V", title="V_j(a)")
-plot!(p3, a_grid, V[:,30], label="j=30")
-plot!(p3, a_grid, V[:,40], label="j=40")
-plot!(p3, a_grid, V[:,50], label="j=50")
-plot!(p3, a_grid, V[:,60], label="j=60")
-
-display(plot(p1, p2, p3, layout=(1,3)))
