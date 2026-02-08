@@ -98,7 +98,7 @@ std(test)
 
 
 function smm_objective(θ::Vector, gradient::Vector, observed_data::Vector, σ_L::Float64, σ_H::Float64, S::Int)
-    Random.seed!(hash(θ)) 
+    Random.seed!(2024) 
     T_sim = length(observed_data)
     
     m1_list = []
@@ -134,7 +134,7 @@ function smm_objective(θ::Vector, gradient::Vector, observed_data::Vector, σ_L
 end   
 
 
-smm_objective(θ,observed_burnt, σ_L, σ_H,100)
+smm_objective(θ, [] ,observed_burnt, σ_L, σ_H,100)
 
 #test
 #plot(sims[2][:,1])
@@ -145,7 +145,7 @@ smm_objective(θ,observed_burnt, σ_L, σ_H,100)
 opt = NLopt.Opt(:LN_COBYLA, 2)
 
 ## Define the objective function:
-NLopt.min_objective!(opt, (θ,gradient)->smm_objective(θ,observed_burnt, σ_L,σ_H, S))
+NLopt.min_objective!(opt, (θ,gradient)->smm_objective(θ, gradient, observed_burnt, σ_L,σ_H, S))
 
 ## Define the lower bounds for the two parameters:
 opt.lower_bounds = [0.5, 0.5] 
@@ -158,7 +158,7 @@ opt.xtol_rel     = 1e-10
 min_f, θ_optim, ret = NLopt.optimize(opt, [0.85, 0.7])
 
 # comparison of optimized parameters vs real parameters - pretty close i guess but is it enough?
-println(θ_optim) # θ_optim = [ρ =  0.8327172318709358,p = 0.7652621680977589]
+println(θ_optim) # θ_optim = [ρ =  0.8460851455325016,p = 0.7672396142192058]
 println(θ)       # θ       = [ρ =  0.9, p = 0.8]
 
 #simulating model with estimated theta
@@ -211,5 +211,5 @@ histogram!(Δ_trash,
            bins = 50, 
            color = "green")
 
-#estimated parameters reproduce the key features of the observed data, because the shape is similar
-
+#estimated parameters reproduce the key features of the observed data, because the shape is similar. 
+#the behaviour of the process is similar
