@@ -5,7 +5,6 @@ using QuantEcon, Interpolations, LinearAlgebra, Parameters, Printf, Roots
 export Consumption_Savings_Model
 
 @with_kw struct Consumption_Savings_Model
-
     #Utiity function
     u = γ == 1 ? (c -> log(c)) : (c -> (c^(1 - γ) - 1) / (1 - γ))
     u_prime = γ == 1 ? (c -> 1/c) : (c -> c^(-γ))
