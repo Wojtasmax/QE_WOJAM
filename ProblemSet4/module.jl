@@ -1,49 +1,75 @@
 module Consumption_Savings_Model
 
-using QuantEcon, Interpolations, LinearAlgebra, Parameters, Printf, Roots, Optim, Statistics, Printf, Random
+using QuantEcon, Interpolations, LinearAlgebra, Parameters, Printf, Roots, Optim, Statistics, Random
 
-export Consumption_Savings_Model
+export Consumption_Savings, T_interp, vfi_interp, create_initial_guess, get_consumption_matrix
 
-@with_kw struct Consumption_Savings
-    #Utiity function
+
+@with_kw struct Consumption_Savings    #Key Parameters
+    γ = 2.0
+    β = 0.99
+    R = 1.010
+
+    #Utility function
     u = γ == 1 ? (c -> log(c)) : (c -> (c^(1 - γ) - 1) / (1 - γ))
-    u_prime = γ == 1 ? (c -> 1/c) : (c -> c^(-γ))
-    u_prime_inv = γ == 1 ? (y -> 1/y) : (y -> y^(-1/γ))
-
-    γ = 2.0 
-    β = 0.99 
-    R = 1.010 
+    u_prime = γ == 1 ? (c -> 1 / c) : (c -> c^(-γ))
+    u_prime_inv = γ == 1 ? (y -> 1 / y) : (y -> y^(-1 / γ))
 
     #AR process for income
     ρ_z = 0.90 #income persistance
-    σ_ϵ = 0.2*sqrt(1 - ρ_z^2) 
-    N_z = 5  #number of wage levels
+    σ_ϵ = 0.2 * sqrt(1 - ρ_z^2)
+    N_z = 3  #number of income levels
     mc_z = rouwenhorst(N_z, ρ_z, σ_ϵ, 0.0)
     λ_z = stationary_distributions(mc_z)[1]
     P_z = mc_z.p
     z_vec = exp.(mc_z.state_values) / sum(exp.(mc_z.state_values) .* λ_z) # normalize mean to 1
-    z_min = minimum(mc_z.state_values) #calculating z_min for the borrowing limit
+    z_min = minimum(z_vec) #calculating z_min for the borrowing limit
 
     #asset grid 
-    a_min = -0.6 * z_min / (R - 1) 
+    a_min = -0.6 * z_min / (R - 1)
     a_max = 500.0
     N_a = 100
     θ = 3
-    ω = range(0, 1, length = N_a) 
-    a_vec = a_min .+ (a_max - a_min) .* ω.^θ 
+    ω = range(0, 1, length=N_a)
+    a_vec = a_min .+ (a_max - a_min) .* ω .^ θ
 
     L = sum(z_vec .* λ_z) #expected income
+end
+
+
+function create_initial_guess(model)
+    # Create a reasonable initial value function based on steady-state consumption
+    @unpack N_a, N_z, a_vec, z_vec, u, β, R = model
+    
+    v_init = zeros(N_a, N_z)
+    
+    for (iz, z) in enumerate(z_vec)
+        for (ia, a) in enumerate(a_vec)
+
+            income = z + R*a  # income at the current state
+            c_heuristic = 0.7 * income  # consume 70%, save 30%
+            
+            if c_heuristic > 0
+                # Approximate value as present value of constant consumption
+                v_init[ia, iz] = u(c_heuristic) / (1 - β)
+            else
+                v_init[ia, iz] = -1e10
+            end
+        end
+    end
+    
+    return v_init
 end
 
 #The first method is standard value function iteration (VFI) with linear interpolation. 
 #VFI with interpolation (direct maximization)   
 function T_interp(v, model)
-    @unpack N_a, N_z, a_vec, z_vec, P_z, β, u,R , a_min, a_max = model
+    @unpack N_a, N_z, a_vec, z_vec, P_z, β, u, R, a_min, a_max = model
 
     v_new = zeros(N_a, N_z)
     σ_new = zeros(N_a, N_z)
 
-    v_interps = [LinearInterpolation(a_vec, v[:, iz], extrapolation_bc = Line()) for ia in 1:N_z]
+    v_interps = [LinearInterpolation(a_vec, v[:, iz], extrapolation_bc=Line()) for iz in 1:N_z]
 
     for (iz, z) in enumerate(z_vec)
         # Pre-compute expected value function E[v(k', z') | z] for any k'
@@ -54,32 +80,32 @@ function T_interp(v, model)
             end
             return ev
         end
-        
-        for (ia, a) in  enumerate(a_vec)
-            cash = R*a + z 
-            a_max_feasible = cash - 1e-10
-            
-            if a_max_feasible < a_min
-                σ_new[ia, iz] = a_min
 
-
+        for (ia, a) in enumerate(a_vec)
 
             function objective(a_next)
-                c = R*a + z - a_next
+                c = R * a + z - a_next
                 if c <= 0
-                    return -Inf
+                    return Inf
                 else
                     return -(u(c) + β * EV(a_next)) #minimization so negative
                 end
             end
 
-            if a_high <= a_low 
+            wealth = R * a + z
+            a_max_feasible = wealth - 1e-10
+
+            a_low = a_min
+            a_high = min(a_max_feasible, a_max)
+
+            if a_high < a_low
                 σ_new[ia, iz] = a_low
-                v_new[ia, iz] = u(wealth - a_low) + β * EV(a_low)
+                v_new[ia, iz] = -Inf
+
             else
                 result = optimize(objective, a_low, a_high, Brent())
                 σ_new[ia, iz] = Optim.minimizer(result)
-                v_new[ia, iz] = Optim.minimum(result) 
+                v_new[ia, iz] = -Optim.minimum(result)
             end
         end
     end
@@ -87,7 +113,7 @@ function T_interp(v, model)
     return v_new, σ_new
 end
 
-function vfi_interp(model; maxiter = 1000, tol = 1e-7, v_init = nothing)
+function vfi_interp(model; maxiter=1000, tol=1e-7, v_init=nothing)
     @unpack N_a, N_z = model
 
     # Use provided initial guess or create one
@@ -95,20 +121,32 @@ function vfi_interp(model; maxiter = 1000, tol = 1e-7, v_init = nothing)
     σ = zeros(N_a, N_z)
     err = tol + 1.0
     iter = 1
-    
+
     while err > tol && iter < maxiter
         v_new, σ = T_interp(v, model)
         err = maximum(abs.(v_new - v) ./ (1.0 .+ abs.(v)))
-        v = v_new 
+        v = v_new
         iter += 1
     end
 
     println("VFI with interpolation converged in $iter iterations, error: $err")
-    return v, σ, iter, err    
+    return v, σ, iter, err
 end
-            
+
+function get_consumption_matrix(model, policy_a)
+    @unpack N_a, N_z, a_vec, z_vec, R = model
+    c_mat = zeros(N_a, N_z)
+    
+    for iz in 1:N_z
+        for ia in 1:N_a
+            wealth = R * a_vec[ia] + z_vec[iz]
+            c_mat[ia, iz] = wealth - policy_a[ia, iz]
+        end
+    end
+    return c_mat
+end
 
 
+    
 
-end #ending module
-
+end
