@@ -2,7 +2,7 @@ module Consumption_Savings_Model
 
 using QuantEcon, Interpolations, LinearAlgebra, Parameters, Printf, Roots, Optim, Statistics, Random
 
-export Consumption_Savings, T_interp, vfi_interp, create_initial_guess, get_consumption_matrix
+export Consumption_Savings, T_interp, vfi_interp, create_initial_guess, get_consumption_matrix, euler_residuals
 
 
 @with_kw struct Consumption_Savings    #Key Parameters
@@ -147,6 +147,64 @@ function get_consumption_matrix(model, policy_a)
 end
 
 
+function euler_residuals(model, σ; test_grid=nothing)
+    # Compute Euler equation residuals to verify solution accuracy.
+    # Euler equation: u'(c) = β*R * E[u'(c')]
+    # Residual: relative error in consumption implied by Euler equation
+    @unpack a_vec, z_vec, P_z, N_z, β, R, γ, u_prime, u_prime_inv = model
     
+    if isnothing(test_grid)
+        test_grid = range(model.a_min + 0.01, model.a_max * 0.5, length=500)
+    end
+    
+    n_test = length(test_grid)
+    residuals = zeros(n_test, N_z)
+    
+
+    σ_interps = [LinearInterpolation(a_vec, σ[:, iz], extrapolation_bc=Line()) for iz in 1:N_z]
+    
+    for (iz, z) in enumerate(z_vec)
+
+        policy_interp = σ_interps[iz]
+        
+        for (ia, a) in enumerate(test_grid)
+            a_next = policy_interp(a)
+            c = R * a + z - a_next
+            
+            if c > 0.0
+                expected_mu_next = 0.0
+                
+                for iz_next in 1:N_z
+                    z_next = z_vec[iz_next]
+                    
+                    a_next_next = σ_interps[iz_next](a_next)
+                    c_next = R * a_next + z_next - a_next_next
+                    
+
+                         expected_mu_next += P_z[iz, iz_next] * u_prime(c_next)
+                    else
+                         expected_mu_next += P_z[iz, iz_next] * 1e10 
+                    end
+                end
+                
+                # Euler Equation RHS
+                # RHS = β * R * E[u'(c')]
+                euler_rhs = β * R * expected_mu_next
+                
+                # Invert to find "implied" consumption
+                c_implied = u_prime_inv(euler_rhs)
+                
+                # Standard relative error: (LHS - RHS) / LHS
+                residuals[ia, iz] = (c - c_implied) / c
+            else
+                # If current c <= 0, the solution is invalid at this point
+                residuals[ia, iz] = NaN
+            end
+        end
+    end
+    
+    return test_grid, residuals
+end
+
 
 end

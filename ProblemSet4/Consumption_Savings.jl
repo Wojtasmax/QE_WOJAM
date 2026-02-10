@@ -2,8 +2,7 @@
 using Plots, Printf, Parameters
 include("module.jl")
 
-using .Consumption_Savings_Model: Consumption_Savings, T_interp, vfi_interp, create_initial_guess, get_consumption_matrix
-
+using .Consumption_Savings_Model: Consumption_Savings, T_interp, vfi_interp, create_initial_guess, get_consumption_matrix, euler_residuals
 
 model_low_aversion  = Consumption_Savings(γ = 2.0 , R = 1.010)
 model_high_aversion = Consumption_Savings(γ = 10.0 , R = 1.008)
@@ -192,7 +191,11 @@ plot!(p3c_zoom, model_high_aversion.a_vec, consumption_high_aversion[:, iz_high]
 xlims!(p3c_zoom, model_high_aversion.a_min, zoom_range_high)
 display(p3c_zoom)
 
+#calculating euler residuals on a test grid Euler 
+euler_residuals_low_aversion_grid, euler_residuals_low_aversion = euler_residuals(model_low_aversion, σ_low)
+euler_residuals_high_aversion_grid, euler_residuals_high_aversion = euler_residuals(model_high_aversion, σ_high)
 
+#plotting Euler residuals 
+plot(euler_residuals_low_aversion, xlabel="a", ylabel="Euler Residuals", title="Euler Equation Residuals (Low Aversion)")
 
-
-
+plot(euler_residuals_high_aversion, xlabel="a", ylabel="Euler Residuals", title="Euler Equation Residuals (High Aversion)")
