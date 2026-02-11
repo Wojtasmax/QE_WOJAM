@@ -217,20 +217,19 @@ c_sim_high_aversion = c_sim_high_aversion[burn_in+1:end]
 iz_sim_low_aversion = iz_sim_low_aversion[burn_in+1:end]
 iz_sim_high_aversion = iz_sim_high_aversion[burn_in+1:end]
 
-# 1. Comparison Plot (Full Duration - shows the range/bounds)
+# 1. Comparison Plot 
 p1 = plot(a_sim_low_aversion, 
           label="Low Aversion (γ=2)", 
           color=:blue, alpha=0.6,
           title="Asset Path Simulation (Full History)", 
           ylabel="Assets (a)", xlabel="Time")
 
-# Use plot! (with '!' at the end) to add to the existing plot
+
 plot!(p1, a_sim_high_aversion, 
       label="High Aversion (γ=10)", 
       color=:red, alpha=0.6)
 
-# 2. Zoomed-in Plot (First 200 periods - shows the behavior)
-# This is usually much more informative for analyzing precautionary savings
+
 T_zoom = 1:200
 p2 = plot(a_sim_low_aversion[T_zoom], 
           label="Low Aversion (γ=2)", 
@@ -242,12 +241,11 @@ plot!(p2, a_sim_high_aversion[T_zoom],
       label="High Aversion (γ=10)", 
       linewidth=2, color=:red, linestyle=:dash)
 
-# Combine them into one layout
+
 plot(p1, p2, layout=(2, 1), size=(800, 800))
 
 function report_simulation_stats(model, a_sim, c_sim, z_sim, label; burn_in=1000)
-    # 1. Discard burn-in periods to ensure stationarity
-    # We check if T is large enough to support burn-in
+
     if length(a_sim) > burn_in + 100
         a = a_sim[burn_in:end]
         c = c_sim[burn_in:end]
@@ -257,7 +255,7 @@ function report_simulation_stats(model, a_sim, c_sim, z_sim, label; burn_in=1000
         a, c, z = a_sim, c_sim, z_sim
     end
 
-    # 2. Calculate Basic Moments
+
     mean_a, std_a = mean(a), std(a)
     mean_c, std_c = mean(c), std(c)
 
@@ -265,23 +263,19 @@ function report_simulation_stats(model, a_sim, c_sim, z_sim, label; burn_in=1000
     min_a, max_a = minimum(a), maximum(a)
     min_c, max_c = minimum(c), maximum(c)
 
-    # 4. Fraction at Borrowing Constraint
-    # Definition: Fraction of time where assets are within 0.001 of the limit
-    # Note: model.a_min is the strict lower bound.
+
     is_constrained = a .<= (model.a_min + 1e-3)
     frac_constrained = count(is_constrained) / length(a)
 
-    # 5. Correlations
-    # Autocorrelations (t vs t-1)
-    # We compute correlation between vector[1:end-1] and vector[2:end]
+
     autocorr_a = cor(a[1:end-1], a[2:end])
     autocorr_c = cor(c[1:end-1], c[2:end])
 
-    # Correlations with Income
+
     corr_c_z = cor(c, z)
     corr_a_z = cor(a, z)
 
-    # 6. Report Formatting
+
     println("-"^60)
     println("Statistics Report: $label")
     println("-"^60)
@@ -310,16 +304,15 @@ function report_simulation_stats(model, a_sim, c_sim, z_sim, label; burn_in=1000
     println()
 end
 
-# --- Execute Reports ---
 
-# 1. Report for Low Risk Aversion (Gamma = 2)
+
 report_simulation_stats(model_low_aversion, 
                         a_sim_low_aversion, 
                         c_sim_low_aversion, 
                         z_sim_low_aversion, 
                         "Low Risk Aversion (γ=2)")
 
-# 2. Report for High Risk Aversion (Gamma = 10)
+
 report_simulation_stats(model_high_aversion, 
                         a_sim_high_aversion, 
                         c_sim_high_aversion, 
