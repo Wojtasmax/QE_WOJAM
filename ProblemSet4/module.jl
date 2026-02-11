@@ -2,7 +2,7 @@ module Consumption_Savings_Model
 
 using QuantEcon, Interpolations, LinearAlgebra, Parameters, Printf, Roots, Optim, Statistics, Random
 
-export Consumption_Savings, T_interp, vfi_interp, create_initial_guess, get_consumption_matrix, euler_residuals
+export Consumption_Savings, T_interp, vfi_interp, create_initial_guess, get_consumption_matrix, euler_residuals, simulate_path
 
 
 @with_kw struct Consumption_Savings    #Key Parameters
@@ -151,7 +151,7 @@ function euler_residuals(model, σ; test_grid=nothing)
     # Compute Euler equation residuals to verify solution accuracy.
     # Euler equation: u'(c) = β*R * E[u'(c')]
     # Residual: relative error in consumption implied by Euler equation
-    @unpack a_vec, z_vec, P_z, N_z, β, R, γ, u_prime, u_prime_inv = model
+    @unpack a_vec, z_vec, P_z, N_z, β, R, γ, u_prime, u_prime_inv = model 
     
     if isnothing(test_grid)
         test_grid = range(model.a_min + 0.01, model.a_max * 0.5, length=500)
@@ -164,46 +164,71 @@ function euler_residuals(model, σ; test_grid=nothing)
     σ_interps = [LinearInterpolation(a_vec, σ[:, iz], extrapolation_bc=Line()) for iz in 1:N_z]
     
     for (iz, z) in enumerate(z_vec)
-
         policy_interp = σ_interps[iz]
         
+
         for (ia, a) in enumerate(test_grid)
             a_next = policy_interp(a)
             c = R * a + z - a_next
             
-            if c > 0.0
+            if c > 1e-10
                 expected_mu_next = 0.0
                 
+
                 for iz_next in 1:N_z
                     z_next = z_vec[iz_next]
                     
+
                     a_next_next = σ_interps[iz_next](a_next)
                     c_next = R * a_next + z_next - a_next_next
                     
-
+                    if c_next > 1e-10
                          expected_mu_next += P_z[iz, iz_next] * u_prime(c_next)
-                    else
+                    else 
+                         # Penalty for non-positive consumption
                          expected_mu_next += P_z[iz, iz_next] * 1e10 
                     end
                 end
                 
-                # Euler Equation RHS
-                # RHS = β * R * E[u'(c')]
+
                 euler_rhs = β * R * expected_mu_next
                 
-                # Invert to find "implied" consumption
+
                 c_implied = u_prime_inv(euler_rhs)
                 
-                # Standard relative error: (LHS - RHS) / LHS
                 residuals[ia, iz] = (c - c_implied) / c
             else
-                # If current c <= 0, the solution is invalid at this point
                 residuals[ia, iz] = NaN
             end
-        end
-    end
+        end 
+    end 
     
     return test_grid, residuals
+end 
+
+function simulate_path(model, σ, T::Int = 10000)
+    @unpack a_vec, z_vec, P_z, N_z, R = model 
+
+    a_sim = Vector{Float64}(undef, T)
+    z_sim = Vector{Float64}(undef, T)
+    iz_sim = Vector{Int}(undef, T)
+    c_sim = Vector{Float64}(undef, T)
+
+    iz_sim[1] = N_z ÷ 2 + 1
+    z_sim[1] = z_vec[iz_sim[1]]
+    a_sim[1] = 0
+
+    for t in 1:T-1
+        σ_interp_fn = LinearInterpolation(a_vec, σ[:, iz_sim[t]], extrapolation_bc = Line())
+        a_sim[t + 1] = σ_interp_fn(a_sim[t])
+        c_sim[t] = R*a_sim[t] + z_sim[t] - a_sim[t + 1]
+
+        iz_sim[t + 1] = findfirst(cumsum(P_z[iz_sim[t], :]) .>= rand())
+        z_sim[t + 1] = z_vec[iz_sim[t + 1]]
+    end
+    c_sim[T] = R * a_sim[T] + z_sim[T] - a_sim[T] #consumption in the last period
+
+    return a_sim[], z_sim[], c_sim, iz_sim #not burning the initial 500 here
 end
 
 
