@@ -2,7 +2,10 @@ module Consumption_Savings_Model
 
 using QuantEcon, Interpolations, LinearAlgebra, Parameters, Printf, Roots, Optim, Statistics, Random
 
-export Consumption_Savings, T_interp, vfi_interp, create_initial_guess, get_consumption_matrix, euler_residuals, simulate_path
+# Set seed for reproducibility
+Random.seed!(1234)
+
+export Consumption_Savings, T_interp, vfi_interp, T_interp_transformed, vfi_interp_transformed, create_initial_guess, get_consumption_matrix, euler_residuals, simulate_path
 
 
 @with_kw struct Consumption_Savings    #Key Parameters
@@ -18,19 +21,19 @@ export Consumption_Savings, T_interp, vfi_interp, create_initial_guess, get_cons
     #AR process for income
     ρ_z = 0.90 #income persistance
     σ_ϵ = 0.2 * sqrt(1 - ρ_z^2)
-    N_z = 3  #number of income levels
+    N_z = 11  #number of income levels
     mc_z = rouwenhorst(N_z, ρ_z, σ_ϵ, 0.0)
     λ_z = stationary_distributions(mc_z)[1]
     P_z = mc_z.p
     z_vec = exp.(mc_z.state_values) / sum(exp.(mc_z.state_values) .* λ_z) # normalize mean to 1
     z_min = minimum(z_vec) #calculating z_min for the borrowing limit
 
-    #asset grid 
+    #asset grid
     a_min = -0.6 * z_min / (R - 1)
     a_max = 500.0
     N_a = 100
     θ = 3
-    ω = range(0, 1, length=N_a)
+    ω = range(0, 1, length = N_a)
     a_vec = a_min .+ (a_max - a_min) .* ω .^ θ
 
     L = sum(z_vec .* λ_z) #expected income
@@ -146,6 +149,95 @@ function get_consumption_matrix(model, policy_a)
     return c_mat
 end
 
+#The second method is value function iteration (VFI) with linear interpolation given transformed value function instead of normal utility
+#VFI with interpolation (transformed maximization)
+
+function T_interp_transformed(w, model)
+    @unpack N_a, N_z, a_vec, z_vec, P_z, β, R, a_min, a_max, γ = model
+
+    w_new = zeros(N_a, N_z)
+    σ_new = zeros(N_a, N_z)
+
+    w_interps = [LinearInterpolation(a_vec, w[:, iz], extrapolation_bc=Line()) for iz in 1:N_z]
+
+    for (iz, z) in enumerate(z_vec)
+        # Pre-compute expected transformed value E[w(a', z')^(1-γ) | z]
+        function EW_transformed(a_next)
+            ew = 0.0
+            for iz_next in 1:N_z
+                w_next = w_interps[iz_next](a_next)
+                ew += P_z[iz, iz_next] * w_next^(1 - γ)
+            end
+            return ew
+        end
+
+        for (ia, a) in enumerate(a_vec)
+            function objective(a_next)
+                c = R * a + z - a_next
+                if c <= 0
+                    return Inf
+                else
+                    # Transformed Bellman: W = [(1-β)c^(1-γ) + β E[W'^(1-γ)]]^(1/(1-γ))
+                    w_val = ((1 - β) * c^(1 - γ) + β * EW_transformed(a_next))^(1 / (1 - γ))
+                    return -w_val  # Negative for minimization
+                end
+            end
+
+            wealth = R * a + z
+            a_max_feasible = wealth - 1e-10
+
+            a_low = a_min
+            a_high = min(a_max_feasible, a_max)
+
+            if a_high < a_low
+                σ_new[ia, iz] = a_low
+                w_new[ia, iz] = -Inf
+            else
+                result = optimize(objective, a_low, a_high, Brent())
+                σ_new[ia, iz] = Optim.minimizer(result)
+                w_new[ia, iz] = -Optim.minimum(result)
+            end
+        end
+    end
+
+    return w_new, σ_new
+end
+
+function vfi_interp_transformed(model; maxiter=1000, tol=1e-7, w_init=nothing)
+    @unpack N_a, N_z, γ = model
+
+    if γ == 1
+        error("Transformed VFI only works for γ ≠ 1. Use standard VFI for log utility.")
+    end
+
+    # Use provided initial guess or create one
+    if isnothing(w_init)
+        v_init = create_initial_guess(model)
+        # Handle negative values before transformation
+        v_init_safe = max.(v_init, 1e-10)  # Ensure all values are positive
+        w = v_init_safe .^ (1 / (1 - γ))  # Transform initial guess
+    else
+        w = copy(w_init)
+    end
+    
+    σ = zeros(N_a, N_z)
+    err = tol + 1.0
+    iter = 1
+
+    while err > tol && iter < maxiter
+        w_new, σ = T_interp_transformed(w, model)
+        err = maximum(abs.(w_new - w) ./ (1.0 .+ abs.(w)))
+        w = w_new
+        iter += 1
+    end
+
+    println("VFI with transformed interpolation converged in $iter iterations, error: $err")
+    
+    # Convert back to original value function
+    v = w .^ (1 - γ)
+    
+    return v, σ, iter, err
+end
 
 function euler_residuals(model, σ; test_grid=nothing)
     # Compute Euler equation residuals to verify solution accuracy.
@@ -228,7 +320,7 @@ function simulate_path(model, σ, T::Int = 10000)
     end
     c_sim[T] = R * a_sim[T] + z_sim[T] - a_sim[T] #consumption in the last period
 
-    return a_sim[], z_sim[], c_sim, iz_sim #not burning the initial 500 here
+    return a_sim, z_sim, c_sim, iz_sim #not burning the initial 500 here
 end
 
 
