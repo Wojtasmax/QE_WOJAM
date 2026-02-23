@@ -1,4 +1,3 @@
-using Revise
 using Plots, Printf, Parameters, Statistics, Random, Interpolations, LinearAlgebra
 include("module.jl")
 
