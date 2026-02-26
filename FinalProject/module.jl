@@ -30,8 +30,8 @@ function ProjectParams(; α=0.3, v=0.6, r=0.04, δ=0.08, w=1.0, ρ=0.9, σ_ε=0.
     β = 1.0 / (1.0 + r)
     
    
-    z_tilde = exp(-σ_ε^2 / (2 * (1 - ρ^2)))
-    μ_logz = log(z_tilde)
+    z̃ = exp(-σ_ε^2 / (2 * (1 - ρ^2)))
+    μ_logz = log(z̃)
     
     
     mc_z = rouwenhorst(N_z, ρ, σ_ε, μ_logz)
