@@ -32,7 +32,8 @@ export ProjectParams
 end
 
 
-function ProjectParams(; α=0.3, v=0.6, r=0.04, δ=0.08, w=1.0, ρ=0.9, σ_ε=0.12, N_z=7)
+function ProjectParams(; α=0.3, v=0.6, r=0.04, δ=0.08, w=1.0, ρ=0.9, σ_ε=0.12, N_z=7, γ=0.05
+    F=0.01,ps=0.80)
     @unpack α,v,r,δ,w,ρ,σ_ε,N_z
 
     β = 1.0 / (1.0 + r)
