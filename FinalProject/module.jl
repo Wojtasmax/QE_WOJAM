@@ -86,7 +86,7 @@ end
 
 function OPERATING_PROFIT(model::ProjectParams,k,z)  
     @unpack α,v,w = model
-    h=OPTIMAL_H(model::ProjectParams,k)
+    h=OPTIMAL_H(model,k,z)
     return z*k^α*h^v-w*h
 end
 end #moduł
