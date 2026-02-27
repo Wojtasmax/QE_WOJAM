@@ -111,6 +111,33 @@ function K_GRID(model::ProjectParams, type=:polynomial,θ=5) #':coś' to symbol 
         return exp.(range(log(k_min), log(k_max), length=N_A))
     end
 end
+
+
+####################PROTOTYP WORK IN PROGRESS TO NIE DZIAŁA POKI CO ################
+
+V_old=ones(len(K_GRID),len(z_vec))
+function VFI()
+    for z_idx,z in eumerate(z_vec)
+        for k in K_GRID
+            for k_next in K_GRID
+                i=k_next-(1-δ)*k
+                PROFIT_NOW=OPERATING_PROFIT(k,z)-ADJ_COST(i,k)-IRR(i)*i
+                DISC_FUTURE_EXPECTED_PROFIT=β*(sum(V_old[k_next,z_vec[z_idx+1]].*P_z))
+                V_new[k,z_vec[z]]=PROFIT_NOW+DISC_FUTURE_EXPECTED_PROFIT
+            end
+        end
+    end
+    
+
+
+
+
+
+
+
+
+
+
 end #moduł
 
 
