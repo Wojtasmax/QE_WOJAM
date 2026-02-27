@@ -102,7 +102,7 @@ function OPERATING_PROFIT(model::ProjectParams,k,z)
     h=OPTIMAL_H(model,k,z)
     return z*k^α*h^v-w*h
 end
-function K_GRID(model::ProjectParams, type=:polynomial,θ=5) #':coś' to symbol jest szybciej tak ustawiam dwa rodzaje jednoe xponential , drugie basicowo z hugget_egm.jl z zajec mozna tetsowac
+function GENERATE_K_GRID(model::ProjectParams, type=:polynomial,θ=5) #':coś' to symbol jest szybciej tak ustawiam dwa rodzaje jednoe xponential , drugie basicowo z hugget_egm.jl z zajec mozna tetsowac
     @unpack ω, k_min, k_max, N_A = model
 
     if type ==:polynomial
@@ -113,18 +113,24 @@ function K_GRID(model::ProjectParams, type=:polynomial,θ=5) #':coś' to symbol 
 end
 
 
-####################PROTOTYP WORK IN PROGRESS TO NIE DZIAŁA POKI CO ################
+####################PROTOTYP WORK IN PROGRESS/DODAC LAPANIE POLITYK ################
 
-V_old=ones(len(K_GRID),len(z_vec))
-function VFI()
-    for (z_idx,z) in eumerate(z_vec)
+
+
+
+function VFI(model::ProjectParams,V_old::Matrix{Float64},k_grid_type=:polynomial,θ=5.0)#theta tutaj jest dla gridu polynomial jak wejdzie k_grid_type=exp to ona nic nie zorbi-> domyslnie 5 jak w hugget_egm
+    @unpack α, β, v, r, w, δ, P_z, z_vec = model
+    K_GRID=GENERATE_K_GRID(model,type=k_grid_type)
+
+    V_new=copy(V_old)
+    for (z_idx,z) in enumerate(z_vec)
         for  (k_idx,k) in enumerate(K_GRID)
             bext_knxt=-Inf
             best_value=-Inf
             for (knxt_idx,k_next) in enumerate(K_GRID)
                 i=k_next-(1-δ)*k
-                PROFIT_NOW=OPERATING_PROFIT(k,z)-ADJ_COST(i,k)-IRR(i)*i
-                DISC_FUTURE_EXPECTED_PROFIT=β*(sum(V_old[knxt_idx,z_idx+1].*P_z))
+                PROFIT_NOW=OPERATING_PROFIT(model,k,z)-ADJ_COST(model,i,k)-IRR(model,i)*i
+                DISC_FUTURE_EXPECTED_PROFIT=β*(sum(V_old[knxt_idx,:].*P_z[z_idx,:]))
                 value=PROFIT_NOW+DISC_FUTURE_EXPECTED_PROFIT
                 if value>best_value
                     V_new[k_idx,z_idx]=PROFIT_NOW+DISC_FUTURE_EXPECTED_PROFIT
@@ -134,15 +140,9 @@ function VFI()
             end
         end
     end
+    return V_new
+end
     
-
-
-
-
-
-
-
-
 
 
 end #moduł
@@ -150,7 +150,3 @@ end #moduł
 
 
 
-
-
-#TODO: dodac miejsce na subsydium i moze funkcje na inwstycje? no i VFI do bellmana
-#baza jest cała zrobiona chyba poza tym
