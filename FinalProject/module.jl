@@ -1,8 +1,7 @@
 module Engine
 
 using QuantEcon, Statistics, Parameters, Interpolations, Optim
-
-export ProjectParams
+export ProjectParams, Solve_Model, VFI, GENERATE_K_GRID, ADJ_COST, IRR, OPTIMAL_H, OPERATING_PROFIT
 
 @with_kw struct ProjectParams
     #=====Parametry globalne=====#
@@ -44,9 +43,9 @@ export ProjectParams
 end
 
 
-function ProjectParams(; α=0.3, v=0.6, r=0.04, δ=0.08, w=1.0, ρ=0.9, σ_ε=0.12, N_z=7, γ=0.05,
+function ProjectParams(model::ProjectParams, α=0.3, v=0.6, r=0.04, δ=0.08, w=1.0, ρ=0.9, σ_ε=0.12, N_z=7, γ=0.05,
     F=0.01,ps=0.80, k_max=500,  k_min=1e-4,N_A=500)
-    @unpack ρ,σ_ε,N_z
+    @unpack ρ,σ_ε,N_z = model
 
     β = 1.0 / (1.0 + r)
     ω = range(0, 1, length=N_A)  
@@ -71,8 +70,8 @@ function ProjectParams(; α=0.3, v=0.6, r=0.04, δ=0.08, w=1.0, ρ=0.9, σ_ε=0.
         γ=γ, F=F, ps=ps, k_min=k_min, k_max=k_max, N_A=N_A, ω=ω
     )
 end
-function ADJ_COST(model::ProjectParams,i,k, )
-    @unpack F,γ =model
+function ADJ_COST(model::ProjectParams,i,k )
+    @unpack F,γ = model
     if i !=0
         return ((γ/2)*(i/k)^2)*k+F*k
     else
@@ -113,7 +112,7 @@ function GENERATE_K_GRID(model::ProjectParams, type=:polynomial,θ=5) #':coś' t
 end
 
 
-####################PROTOTYP WORK IN PROGRESS/DODAC LAPANIE POLITYK ################
+#################################WERSJA ALPHA?##########################################
 
 
 
@@ -127,24 +126,21 @@ function VFI(model::ProjectParams,V_old::Matrix{Float64},k_grid_type=:polynomial
      FUTURE_CAPITAL_POLICY=copy(V_old)
      ADJ_COST_POLICY=copy(V_old)
      IRR_COST_POLICY=copy(V_old)
-     OPERATING_PROFIT_POLCY=copy(V_old)
+     OPERATING_PROFIT_POLICY=copy(V_old)
      TOTAL_PROFIT_POLICY=copy(V_old)
 
     for (z_idx,z) in enumerate(z_vec)
         for  (k_idx,k) in enumerate(K_GRID)
             best_value=-Inf
-
-
-            #ZEBY BYLO SYZBCIEJ BO TO NEI ZALEYZ OD K_NEXT
-
+            #ZEBY BYLO SYZBCIEJ BO TO NEI ZALEYZ OD K_NEXT I BEDZIE SIE TAK SYZBCIEJ LICZYC
             OP_PROFIT=OPERATING_PROFIT(model,k,z)
-
 
             for (knxt_idx,k_next) in enumerate(K_GRID)
                 i=k_next-(1-δ)*k
                 PROFIT_NOW=OP_PROFIT-ADJ_COST(model,i,k)-IRR(model,i)*i
                 DISC_FUTURE_EXPECTED_PROFIT=β*(sum(V_old[knxt_idx,:].*P_z[z_idx,:]))
                 value=PROFIT_NOW+DISC_FUTURE_EXPECTED_PROFIT
+
                 if value>best_value
                     V_new[k_idx,z_idx]=value
                     INVESTMENT_POLICY[k_idx,z_idx]=i
@@ -162,10 +158,22 @@ function VFI(model::ProjectParams,V_old::Matrix{Float64},k_grid_type=:polynomial
     return V_new,INVESTMENT_POLICY,FUTURE_CAPITAL_POLICY,ADJ_COST_POLICY,IRR_COST_POLICY, OPERATING_PROFIT_POLICY,TOTAL_PROFIT_POLICY
 end
     
-
-
+function Solve_Model(model::ProjectParams,V_old,min_error=1e-6,max_iter=10000)
+    error=1
+    iter=0
+    while (error>min_error && iter<max_iter)
+        out=VFI(model,V_old,:polynomial,5.0)
+        iter+=1
+        V_new=out[1]
+        error=maximum(abs.(V_new.-V_old))
+        V_old=V_new
+        if iter % 50 == 0
+            println("Iteracja $iter, błąd = $error")
+        end
+    end
+    return VFI(model,V_old,:polynomial,5.0)
+    
+end
 end #moduł
-
-
 
 
