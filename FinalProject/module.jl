@@ -5,7 +5,7 @@ using QuantEcon, Statistics, Parameters, Interpolations, Optim
 export ProjectParams
 
 @with_kw struct ProjectParams
-    #==== Parametry globalne ====#
+    #=====Parametry globalne=====#
     α= 0.3
     v= 0.6
     r= 0.04
@@ -13,12 +13,12 @@ export ProjectParams
     w= 1.0
     β = 1.0 / (1.0 + r)
     
-    #==== Parametry procesu Markowa ====#
+    #=====Parametry procesu Markowa=====#
     ρ::Float64 = 0.9
     σ_ε::Float64 = 0.12
     N_z::Int = 7  #to jest z czapy
 
-    #==== Wyniki procesu Markowa ====#
+    #=====Wyniki procesu Markowa=====#
     z_vec::Vector{Float64}=Float64[]
     P_z::Matrix{Float64}=zeros(1,1)
     λ_z::Vector{Float64}=Float64[]
@@ -27,16 +27,29 @@ export ProjectParams
     #===Adjustment Cost====#
     #losowe wartosci    
     γ = 0.05          
-    F = 0.01          #fixed cost
+    F = 0.01          
     ps= 0.80         
+
+    #======Grid=====#
+    # jak bedzie mulic to zmienic 
+    #jak beda bledy numeryczne to zmienic k_min
+    k_max=500
+    k_min=1e-4
+    N_A=500   
+    ω = range(0, 1, length=N_A)
+
+
+
+
 end
 
 
-function ProjectParams(; α=0.3, v=0.6, r=0.04, δ=0.08, w=1.0, ρ=0.9, σ_ε=0.12, N_z=7, γ=0.05
-    F=0.01,ps=0.80)
-    @unpack α,v,r,δ,w,ρ,σ_ε,N_z
+function ProjectParams(; α=0.3, v=0.6, r=0.04, δ=0.08, w=1.0, ρ=0.9, σ_ε=0.12, N_z=7, γ=0.05,
+    F=0.01,ps=0.80, k_max=500,  k_min=1e-4,N_A=500)
+    @unpack ρ,σ_ε,N_z
 
     β = 1.0 / (1.0 + r)
+    ω = range(0, 1, length=N_A)  
     
    
     z̃ = exp(-σ_ε^2 / (2 * (1 - ρ^2)))
@@ -55,7 +68,7 @@ function ProjectParams(; α=0.3, v=0.6, r=0.04, δ=0.08, w=1.0, ρ=0.9, σ_ε=0.
         α=α, v=v, r=r, δ=δ, w=w, β=β, 
         ρ=ρ, σ_ε=σ_ε, N_z=N_z, 
         z_vec=z_vec, P_z=P_z, λ_z=λ_z,
-        γ=γ, F=F, ps=ps
+        γ=γ, F=F, ps=ps, k_min=k_min, k_max=k_max, N_A=N_A, ω=ω
     )
 end
 function ADJ_COST(model::ProjectParams,i,k, )
@@ -88,5 +101,14 @@ function OPERATING_PROFIT(model::ProjectParams,k,z)
     @unpack α,v,w = model
     h=OPTIMAL_H(model,k,z)
     return z*k^α*h^v-w*h
+end
+function K_GRID(model::ProjectParams, type=:polynomial,θ=5) #':coś' to symbol jest szybciej tak ustawiam dwa rodzaje jednoe xponential , drugie basicowo z hugget_egm.jl z zajec mozna tetsowac
+    @unpack ω, k_min, k_max, N_A = model
+
+    if type ==:polynomial
+        return  k_min .+ (k_max - k_min) .* ω.^θ
+    elseif type ==:exp
+        return exp.(range(log(k_min), log(k_max), length=N_A))
+    end
 end
 end #moduł
