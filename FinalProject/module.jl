@@ -112,3 +112,11 @@ function K_GRID(model::ProjectParams, type=:polynomial,θ=5) #':coś' to symbol 
     end
 end
 end #moduł
+
+
+
+
+
+
+#TODO: dodac miejsce na subsydium i moze funkcje na inwstycje? no i VFI do bellmana
+#baza jest cała zrobiona chyba poza tym
