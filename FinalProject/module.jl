@@ -5,37 +5,37 @@ export ProjectParams, Solve_Model, VFI, GENERATE_K_GRID, ADJ_COST, IRR, OPTIMAL_
 
 @with_kw struct ProjectParams
     #=====Parametry globalne=====#
-    α= 0.3
-    v= 0.6
-    r= 0.04
-    δ= 0.08
-    w= 1.0
-    β = 1.0 / (1.0 + r)
+    alpha = 0.3
+    v = 0.6
+    r = 0.04
+    delta = 0.08
+    w = 1.0
+    beta = 1.0 / (1.0 + r)
     
     #=====Parametry procesu Markowa=====#
-    ρ::Float64 = 0.9
-    σ_ε::Float64 = 0.12
+    rho::Float64 = 0.9
+    sigma_eps::Float64 = 0.12
     N_z::Int = 7  #to jest z czapy
 
     #=====Wyniki procesu Markowa=====#
-    z_vec::Vector{Float64}=Float64[]
-    P_z::Matrix{Float64}=zeros(1,1)
-    λ_z::Vector{Float64}=Float64[]
+    z_vec::Vector{Float64} = Float64[]
+    P_z::Matrix{Float64} = zeros(1,1)
+    lambda_z::Vector{Float64} = Float64[]
 
 
     #===Adjustment Cost====#
     #losowe wartosci    
-    γ = 0.05          
+    gamma = 0.05          
     F = 0.01          
-    ps= 0.80         
+    ps = 0.80         
 
     #======Grid=====#
     # jak bedzie mulic to zmienic 
     #jak beda bledy numeryczne to zmienic k_min
-    k_max=500
-    k_min=1e-4
-    N_A=500   
-    ω = range(0, 1, length=N_A)
+    k_max = 500
+    k_min = 1e-4
+    N_A = 500   
+    omega = range(0, 1, length=N_A)
 
 
 
@@ -43,46 +43,47 @@ export ProjectParams, Solve_Model, VFI, GENERATE_K_GRID, ADJ_COST, IRR, OPTIMAL_
 end
 
 
-function ProjectParams(model::ProjectParams, α=0.3, v=0.6, r=0.04, δ=0.08, w=1.0, ρ=0.9, σ_ε=0.12, N_z=7, γ=0.05,
-    F=0.01,ps=0.80, k_max=500,  k_min=1e-4,N_A=500)
-    @unpack ρ,σ_ε,N_z = model
+function ProjectParams(model::ProjectParams, alpha=0.3, v=0.6, r=0.04, delta=0.08, w=1.0, rho=0.9, sigma_eps=0.12, N_z=7, gamma=0.05,
+    F=0.01, ps=0.80, k_max=500, k_min=1e-4, N_A=500)
+    @unpack rho, sigma_eps, N_z = model
 
-    β = 1.0 / (1.0 + r)
-    ω = range(0, 1, length=N_A)  
+    beta = 1.0 / (1.0 + r)
+    omega = range(0, 1, length=N_A)  
     
    
-    z̃ = exp(-σ_ε^2 / (2 * (1 - ρ^2)))
-    μ_logz = log(z̃)
+    z_tilde = exp(-sigma_eps^2 / (2 * (1 - rho^2)))
+    mu_logz = log(z_tilde)
     
     
-    mc_z = rouwenhorst(N_z, ρ, σ_ε, μ_logz)
+    mc_z = rouwenhorst(N_z, rho, sigma_eps, mu_logz)
     P_z = mc_z.p
-    λ_z = stationary_distributions(mc_z)[1]
+    lambda_z = stationary_distributions(mc_z)[1]
     
     
     z_raw = exp.(mc_z.state_values)
-    z_vec = z_raw ./ sum(z_raw .* λ_z)
+    z_vec = z_raw ./ sum(z_raw .* lambda_z)
     
     return ProjectParams(
-        α=α, v=v, r=r, δ=δ, w=w, β=β, 
-        ρ=ρ, σ_ε=σ_ε, N_z=N_z, 
-        z_vec=z_vec, P_z=P_z, λ_z=λ_z,
-        γ=γ, F=F, ps=ps, k_min=k_min, k_max=k_max, N_A=N_A, ω=ω
+        alpha=alpha, v=v, r=r, delta=delta, w=w, beta=beta, 
+        rho=rho, sigma_eps=sigma_eps, N_z=N_z, 
+        z_vec=z_vec, P_z=P_z, lambda_z=lambda_z,
+        gamma=gamma, F=F, ps=ps, k_min=k_min, k_max=k_max, N_A=N_A, omega=omega
     )
 end
-function ADJ_COST(model::ProjectParams,i,k )
-    @unpack F,γ = model
-    if i !=0
-        return ((γ/2)*(i/k)^2)*k+F*k
+
+function ADJ_COST(model::ProjectParams, i, k)
+    @unpack F, gamma = model
+    if i != 0
+        return ((gamma/2)*(i/k)^2)*k + F*k
     else
         return 0.0
     end
 end
 
 
-function IRR(model::ProjectParams,i)
+function IRR(model::ProjectParams, i)
     @unpack ps = model
-    if i >=0
+    if i >= 0
         return 1.0
     else
         return ps
@@ -90,90 +91,87 @@ function IRR(model::ProjectParams,i)
 end
 
 
-function OPTIMAL_H(model::ProjectParams,k,z) #jak cos sie tu bedzie jebac to zmienić tak zeby ulamke w potedze byl dodatni
-    @unpack w,v,α = model
-    return (w/(v*z*k^α))^(1/(v-1))
+function OPTIMAL_H(model::ProjectParams, k, z)
+    @unpack w, v, alpha = model
+    return (w/(v*z*k^alpha))^(1/(v-1))
 end
 
 
-function OPERATING_PROFIT(model::ProjectParams,k,z)  
-    @unpack α,v,w = model
-    h=OPTIMAL_H(model,k,z)
-    return z*k^α*h^v-w*h
+function OPERATING_PROFIT(model::ProjectParams, k, z)  
+    @unpack alpha, v, w = model
+    h = OPTIMAL_H(model, k, z)
+    return z*k^alpha*h^v - w*h
 end
-function GENERATE_K_GRID(model::ProjectParams, type=:polynomial,θ=5) #':coś' to symbol jest szybciej tak ustawiam dwa rodzaje jednoe xponential , drugie basicowo z hugget_egm.jl z zajec mozna tetsowac
-    @unpack ω, k_min, k_max, N_A = model
 
-    if type ==:polynomial
-        return  k_min .+ (k_max - k_min) .* ω.^θ
-    elseif type ==:exp
+function GENERATE_K_GRID(model::ProjectParams, type=:polynomial, theta=5)
+    @unpack omega, k_min, k_max, N_A = model
+
+    if type == :polynomial
+        return  k_min .+ (k_max - k_min) .* omega.^theta
+    elseif type == :exp
         return exp.(range(log(k_min), log(k_max), length=N_A))
     end
 end
 
 
-#################################WERSJA ALPHA?##########################################
+function VFI(model::ProjectParams, V_old::Matrix{Float64}, k_grid_type=:polynomial, theta=5.0)
+    @unpack alpha, beta, v, r, w, delta, P_z, z_vec = model
+    K_GRID = GENERATE_K_GRID(model, k_grid_type, theta)
 
+    V_new = copy(V_old)
+    INVESTMENT_POLICY = copy(V_old)
+    FUTURE_CAPITAL_POLICY = copy(V_old)
+    ADJ_COST_POLICY = copy(V_old)
+    IRR_COST_POLICY = copy(V_old)
+    OPERATING_PROFIT_POLICY = copy(V_old)
+    TOTAL_PROFIT_POLICY = copy(V_old)
 
+    for (z_idx, z) in enumerate(z_vec)
+        for (k_idx, k) in enumerate(K_GRID)
+            best_value = -Inf
+            OP_PROFIT = OPERATING_PROFIT(model, k, z)
 
+            for (knxt_idx, k_next) in enumerate(K_GRID)
+                i = k_next - (1-delta)*k
+                PROFIT_NOW = OP_PROFIT - ADJ_COST(model, i, k) - IRR(model, i)*i
+                DISC_FUTURE_EXPECTED_PROFIT = beta*(sum(V_old[knxt_idx, :].*P_z[z_idx, :]))
+                value = PROFIT_NOW + DISC_FUTURE_EXPECTED_PROFIT
 
-function VFI(model::ProjectParams,V_old::Matrix{Float64},k_grid_type=:polynomial,θ=5.0)#theta tutaj jest dla gridu polynomial jak wejdzie k_grid_type=exp to ona nic nie zorbi-> domyslnie 5 jak w hugget_egm
-    @unpack α, β, v, r, w, δ, P_z, z_vec = model
-    K_GRID=GENERATE_K_GRID(model,k_grid_type,θ)
-
-    V_new=copy(V_old)
-     INVESTMENT_POLICY=copy(V_old)
-     FUTURE_CAPITAL_POLICY=copy(V_old)
-     ADJ_COST_POLICY=copy(V_old)
-     IRR_COST_POLICY=copy(V_old)
-     OPERATING_PROFIT_POLICY=copy(V_old)
-     TOTAL_PROFIT_POLICY=copy(V_old)
-
-    for (z_idx,z) in enumerate(z_vec)
-        for  (k_idx,k) in enumerate(K_GRID)
-            best_value=-Inf
-            #ZEBY BYLO SYZBCIEJ BO TO NEI ZALEYZ OD K_NEXT I BEDZIE SIE TAK SYZBCIEJ LICZYC
-            OP_PROFIT=OPERATING_PROFIT(model,k,z)
-
-            for (knxt_idx,k_next) in enumerate(K_GRID)
-                i=k_next-(1-δ)*k
-                PROFIT_NOW=OP_PROFIT-ADJ_COST(model,i,k)-IRR(model,i)*i
-                DISC_FUTURE_EXPECTED_PROFIT=β*(sum(V_old[knxt_idx,:].*P_z[z_idx,:]))
-                value=PROFIT_NOW+DISC_FUTURE_EXPECTED_PROFIT
-
-                if value>best_value
-                    V_new[k_idx,z_idx]=value
-                    INVESTMENT_POLICY[k_idx,z_idx]=i
-                    FUTURE_CAPITAL_POLICY[k_idx,z_idx]=k_next
-                    ADJ_COST_POLICY[k_idx,z_idx]=ADJ_COST(model,i,k)
-                    IRR_COST_POLICY[k_idx,z_idx]=IRR(model,i)*i
-                    OPERATING_PROFIT_POLICY[k_idx,z_idx]=OP_PROFIT
-                    TOTAL_PROFIT_POLICY[k_idx,z_idx]=PROFIT_NOW
-                    best_value=value
+                if value > best_value
+                    V_new[k_idx, z_idx] = value
+                    INVESTMENT_POLICY[k_idx, z_idx] = i
+                    FUTURE_CAPITAL_POLICY[k_idx, z_idx] = k_next
+                    ADJ_COST_POLICY[k_idx, z_idx] = ADJ_COST(model, i, k)
+                    IRR_COST_POLICY[k_idx, z_idx] = IRR(model, i)*i
+                    OPERATING_PROFIT_POLICY[k_idx, z_idx] = OP_PROFIT
+                    TOTAL_PROFIT_POLICY[k_idx, z_idx] = PROFIT_NOW
+                    best_value = value
 
                 end
             end
         end
     end
-    return V_new,INVESTMENT_POLICY,FUTURE_CAPITAL_POLICY,ADJ_COST_POLICY,IRR_COST_POLICY, OPERATING_PROFIT_POLICY,TOTAL_PROFIT_POLICY
+    return V_new, INVESTMENT_POLICY, FUTURE_CAPITAL_POLICY, ADJ_COST_POLICY, IRR_COST_POLICY, OPERATING_PROFIT_POLICY, TOTAL_PROFIT_POLICY
 end
     
-function Solve_Model(model::ProjectParams,V_old,min_error=1e-6,max_iter=10000)
-    error=1
-    iter=0
-    while (error>min_error && iter<max_iter)
-        out=VFI(model,V_old,:polynomial,5.0)
-        iter+=1
-        V_new=out[1]
-        error=maximum(abs.(V_new.-V_old))
-        V_old=V_new
-        if iter % 50 == 0
-            println("Iteracja $iter, błąd = $error")
+function Solve_Model(model::ProjectParams, V_old, min_error, max_iter)
+    error = 1
+    iter = 0
+    total_time = @elapsed begin
+        while (error > min_error && iter < max_iter)
+            out = VFI(model, V_old, :polynomial, 5.0)
+            iter += 1
+            V_new = out[1]
+            error = maximum(abs.(V_new .- V_old))
+            V_old = V_new
+            if iter % 50 == 0
+                println("Iteracja $iter, błąd = $error")
+            end
         end
     end
-    return VFI(model,V_old,:polynomial,5.0)
+    println("Całkowity czas obliczeń: ", round(total_time, digits=3), " sekund.")
+    println("Średni czas na iterację: ", round(total_time/iter, digits=5), " s.")
+    return VFI(model, V_old, :polynomial, 5.0)
     
 end
 end #moduł
-
-
