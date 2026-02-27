@@ -120,27 +120,46 @@ end
 
 function VFI(model::ProjectParams,V_old::Matrix{Float64},k_grid_type=:polynomial,θ=5.0)#theta tutaj jest dla gridu polynomial jak wejdzie k_grid_type=exp to ona nic nie zorbi-> domyslnie 5 jak w hugget_egm
     @unpack α, β, v, r, w, δ, P_z, z_vec = model
-    K_GRID=GENERATE_K_GRID(model,type=k_grid_type)
+    K_GRID=GENERATE_K_GRID(model,k_grid_type,θ)
 
     V_new=copy(V_old)
+     INVESTMENT_POLICY=copy(V_old)
+     FUTURE_CAPITAL_POLICY=copy(V_old)
+     ADJ_COST_POLICY=copy(V_old)
+     IRR_COST_POLICY=copy(V_old)
+     OPERATING_PROFIT_POLCY=copy(V_old)
+     TOTAL_PROFIT_POLICY=copy(V_old)
+
     for (z_idx,z) in enumerate(z_vec)
         for  (k_idx,k) in enumerate(K_GRID)
-            bext_knxt=-Inf
             best_value=-Inf
+
+
+            #ZEBY BYLO SYZBCIEJ BO TO NEI ZALEYZ OD K_NEXT
+
+            OP_PROFIT=OPERATING_PROFIT(model,k,z)
+
+
             for (knxt_idx,k_next) in enumerate(K_GRID)
                 i=k_next-(1-δ)*k
-                PROFIT_NOW=OPERATING_PROFIT(model,k,z)-ADJ_COST(model,i,k)-IRR(model,i)*i
+                PROFIT_NOW=OP_PROFIT-ADJ_COST(model,i,k)-IRR(model,i)*i
                 DISC_FUTURE_EXPECTED_PROFIT=β*(sum(V_old[knxt_idx,:].*P_z[z_idx,:]))
                 value=PROFIT_NOW+DISC_FUTURE_EXPECTED_PROFIT
                 if value>best_value
-                    V_new[k_idx,z_idx]=PROFIT_NOW+DISC_FUTURE_EXPECTED_PROFIT
-                    bext_knxt=k_next
+                    V_new[k_idx,z_idx]=value
+                    INVESTMENT_POLICY[k_idx,z_idx]=i
+                    FUTURE_CAPITAL_POLICY[k_idx,z_idx]=k_next
+                    ADJ_COST_POLICY[k_idx,z_idx]=ADJ_COST(model,i,k)
+                    IRR_COST_POLICY[k_idx,z_idx]=IRR(model,i)*i
+                    OPERATING_PROFIT_POLICY[k_idx,z_idx]=OP_PROFIT
+                    TOTAL_PROFIT_POLICY[k_idx,z_idx]=PROFIT_NOW
                     best_value=value
+
                 end
             end
         end
     end
-    return V_new
+    return V_new,INVESTMENT_POLICY,FUTURE_CAPITAL_POLICY,ADJ_COST_POLICY,IRR_COST_POLICY, OPERATING_PROFIT_POLICY,TOTAL_PROFIT_POLICY
 end
     
 
