@@ -117,13 +117,20 @@ end
 
 V_old=ones(len(K_GRID),len(z_vec))
 function VFI()
-    for z_idx,z in eumerate(z_vec)
-        for k in K_GRID
-            for k_next in K_GRID
+    for (z_idx,z) in eumerate(z_vec)
+        for  (k_idx,k) in enumerate(K_GRID)
+            bext_knxt=-Inf
+            best_value=-Inf
+            for (knxt_idx,k_next) in enumerate(K_GRID)
                 i=k_next-(1-δ)*k
                 PROFIT_NOW=OPERATING_PROFIT(k,z)-ADJ_COST(i,k)-IRR(i)*i
-                DISC_FUTURE_EXPECTED_PROFIT=β*(sum(V_old[k_next,z_vec[z_idx+1]].*P_z))
-                V_new[k,z_vec[z]]=PROFIT_NOW+DISC_FUTURE_EXPECTED_PROFIT
+                DISC_FUTURE_EXPECTED_PROFIT=β*(sum(V_old[knxt_idx,z_idx+1].*P_z))
+                value=PROFIT_NOW+DISC_FUTURE_EXPECTED_PROFIT
+                if value>best_value
+                    V_new[k_idx,z_idx]=PROFIT_NOW+DISC_FUTURE_EXPECTED_PROFIT
+                    bext_knxt=k_next
+                    best_value=value
+                end
             end
         end
     end
