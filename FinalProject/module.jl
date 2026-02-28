@@ -71,12 +71,12 @@ function ProjectParams(model::ProjectParams, alpha=0.3, v=0.6, r=0.04, delta=0.0
     )
 end
 
-function ADJ_COST(model::ProjectParams, i, k)
+function ADJ_COST(model::ProjectParams, i, k, toll_level=0.0005)
     @unpack F, gamma = model
-    if i != 0
-        return ((gamma/2)*(i/k)^2)*k + F*k
-    else
+    if  (-toll_level<=i<=toll_level)
         return 0.0
+    else
+        return ((gamma/2)*(i/k)^2)*k + F*k
     end
 end
 
