@@ -81,12 +81,12 @@ function ADJ_COST(model::ProjectParams, i, k)
 end
 
 
-function IRR(model::ProjectParams, i)
+function IRR(model::ProjectParams, i, toll_level=0.005)
     @unpack ps = model
-    if i >= 0
+    if  (-toll_level<=i<=toll_level)
         return 1.0
     else
-        return ps
+        return ps     
     end
 end
 
@@ -174,4 +174,4 @@ function Solve_Model(model::ProjectParams, V_old, min_error, max_iter)
     return VFI(model, V_old, :polynomial, 5.0)
     
 end
-end #moduł
+end #modułt
