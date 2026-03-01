@@ -1,7 +1,7 @@
 module Engine
 
-using QuantEcon, Statistics, Parameters, Interpolations, Optim
-export ProjectParams, Solve_Model, VFI, GENERATE_K_GRID, ADJ_COST, IRR, OPTIMAL_H, OPERATING_PROFIT
+using QuantEcon, Statistics, Parameters, Interpolations, Optim, NumericalIntegration, LinearAlgebra
+export ProjectParams, Solve_Model, VFI, GENERATE_K_GRID, ADJ_COST, IRR, OPTIMAL_H, OPERATING_PROFIT, get_transition_matrix_young, stationary_distribution
 
 @with_kw struct ProjectParams
     #=====Parametry globalne=====#
@@ -174,4 +174,90 @@ function Solve_Model(model::ProjectParams, V_old, min_error, max_iter)
     return VFI(model, V_old, :polynomial, 5.0)
     
 end
+
+
+function get_transition_matrix_young(model::ProjectParams, future_k_policy::Matrix{Float64})
+    # parameters
+    @unpack N_A, N_z, P_z = model
+    
+    # k grid generation
+    K_GRID = GENERATE_K_GRID(model, :polynomial, 5.0)
+    
+    Q = zeros(N_A * N_z, N_A * N_z)
+    
+    for iz in 1:N_z
+        for ik in 1:N_A
+            k_next = future_k_policy[ik, iz]
+            
+            if k_next <= K_GRID[1]
+                ik_low = 1
+                ik_high = 1
+                weight_low = 1.0
+                weight_high = 0.0
+            elseif k_next >= K_GRID[end]
+                ik_low = N_A
+                ik_high = N_A
+                weight_low = 1.0
+                weight_high = 0.0
+            else
+                ik_high = searchsortedfirst(K_GRID, k_next)
+                ik_low = ik_high - 1
+                
+                # linear interpolaion weights
+                weight_high = (k_next - K_GRID[ik_low]) / (K_GRID[ik_high] - K_GRID[ik_low])
+                weight_low = 1.0 - weight_high
+            end
+            
+            # probability distribution for next z state
+            for iz_next in 1:N_z
+                row = (iz - 1) * N_A + ik
+                col_low = (iz_next - 1) * N_A + ik_low
+                col_high = (iz_next - 1) * N_A + ik_high
+                
+                Q[row, col_low] += P_z[iz, iz_next] * weight_low
+                Q[row, col_high] += P_z[iz, iz_next] * weight_high
+            end
+        end
+    end
+    
+    return Q
+end
+
+function stationary_distribution(model::ProjectParams, future_k_policy::Matrix{Float64})
+    @unpack N_A, N_z = model
+    
+    Q = get_transition_matrix_young(model, future_k_policy)
+    
+    # initial guess for the distribution
+    λ_vector = ones(N_A * N_z) / (N_A * N_z)
+    
+    # stationary distribution calculation using power iteration
+    for iter in 1:10000
+        λ_new = Q' * λ_vector
+        
+        if maximum(abs.(λ_new - λ_vector)) < 1e-10
+            λ_vector = λ_new
+            break
+        end
+        λ_vector = λ_new
+    end
+    
+    # standardize to sum to 1
+    λ_vector = λ_vector / sum(λ_vector)
+    
+    # reshape to (N_A, N_z) for easier interpretation
+    μ = zeros(N_A, N_z)
+    for iz in 1:N_z
+        μ[:, iz] = λ_vector[(iz-1)*N_A+1:iz*N_A]
+    end
+    
+    return μ
+end
+
+
 end #moduł
+
+
+### Optimizing method of moments
+
+#θ = (γ, F, ps)
