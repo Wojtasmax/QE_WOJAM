@@ -15,7 +15,7 @@ export ProjectParams, Solve_Model, VFI, GENERATE_K_GRID, ADJ_COST, IRR, OPTIMAL_
     #=====Parametry procesu Markowa=====#
     rho::Float64 = 0.9
     sigma_eps::Float64 = 0.12
-    N_z::Int = 7  #to jest z czapy
+    N_z::Int = 7  #to jest z czapy - zmienić na 3
 
     #=====Wyniki procesu Markowa=====#
     z_vec::Vector{Float64} = Float64[]
@@ -69,6 +69,58 @@ function ProjectParams(model::ProjectParams, alpha=0.3, v=0.6, r=0.04, delta=0.0
         z_vec=z_vec, P_z=P_z, lambda_z=lambda_z,
         gamma=gamma, F=F, ps=ps, k_min=k_min, k_max=k_max, N_A=N_A, omega=omega
     )
+end
+
+
+@with_kw struct ProjectParams_corrected #prostszy struct
+    #=====Parametry globalne=====#
+    alpha = 0.3
+    v = 0.6
+    r = 0.04
+    delta = 0.08
+    w = 1.0
+    beta = 1.0 / (1.0 + r)
+    
+    #=====Parametry procesu Markowa=====#
+    rho::Float64 = 0.9
+    sigma_eps::Float64 = 0.12
+    N_z::Int = 7  #to jest z czapy - zmienić na 3
+
+    #=====Wyniki procesu Markowa=====#
+    z_vec::Vector{Float64} = Float64[]
+    P_z::Matrix{Float64} = zeros(1,1)
+    lambda_z::Vector{Float64} = Float64[]
+
+
+    #===Adjustment Cost====#
+    #losowe wartosci    
+    gamma = 0.05          
+    F = 0.01          
+    ps = 0.80         
+
+    #======Grid=====#
+    # jak bedzie mulic to zmienic 
+    #jak beda bledy numeryczne to zmienic k_min
+    k_max = 500
+    k_min = 1e-4
+    N_A = 500   
+    omega = range(0, 1, length=N_A)
+
+    beta = 1.0 / (1.0 + r)
+    omega = range(0, 1, length=N_A)  
+    
+   
+    z_tilde = exp(-sigma_eps^2 / (2 * (1 - rho^2)))
+    mu_logz = log(z_tilde)
+    
+    
+    mc_z = rouwenhorst(N_z, rho, sigma_eps, mu_logz)
+    P_z = mc_z.p
+    lambda_z = stationary_distributions(mc_z)[1]
+    
+    
+    z_raw = exp.(mc_z.state_values)
+    z_vec = z_raw ./ sum(z_raw .* lambda_z)
 end
 
 function ADJ_COST(model::ProjectParams, i, k, toll_level=0.0005)
