@@ -1,29 +1,22 @@
-
-
-###TO JEST TYLKO DO SPRAWDZENIA CZY TO SIE WOGOLE LICZY!!!!!!!!!!!!!!!!!!!!#############
-
-
-
-
-
-
-
-
-
+### TO JEST TYLKO DO SPRAWDZENIA CZY TO SIE WOGOLE LICZY!!!!!!!!!!!!!!!!!!!!#############
 
 using Revise, QuantEcon, Statistics, Parameters, Interpolations, Optim, NumericalIntegration, LinearAlgebra
+
 # Załaduj moduł Engine z tego samego katalogu
 include(joinpath(@__DIR__, "module.jl"))
-#using .Engine
-using .Engine: ProjectParams, Solve_Model, VFI, GENERATE_K_GRID, ADJ_COST, IRR, OPTIMAL_H, OPERATING_PROFIT, get_transition_matrix_young, stationary_distribution
+using .Engine: initialize_model, Solve_Model, VFI, GENERATE_K_GRID, ADJ_COST, IRR, OPTIMAL_H, OPERATING_PROFIT, get_transition_matrix_young, stationary_distribution
+
+# Sprawdzenie wątków (Upewnij się, że odpaliłeś Julię przez julia -t auto)
+println("Aktywne wątki: ", Threads.nthreads())
+
 # Inicjalizacja modelu
 println("Inicjalizacja modelu...")
-model_base = ProjectParams()
-model = ProjectParams(model_base)
+model = initialize_model()  # ZMIANA: używamy initialize_model zamiast ProjectParams()
 
 println("Parametry modelu:")
 println("α = ", model.alpha)
-println("β = ", model.beta)
+println("r = ", model.r)
+println("β = ", 1.0 / (1.0 + model.r))  # ZMIANA: obliczamy beta na miejscu
 println("N_z = ", model.N_z)
 println("N_A = ", model.N_A)
 println()
@@ -37,8 +30,8 @@ println("Rozpoczynam rozwiązywanie modelu...")
 println("Wymiary V_init: ", size(V_init))
 println()
 
-# Rozwiązanie modelu
-result = Solve_Model(model, V_init, 1e-4, 10000)
+# Rozwiązanie modelu - TU ODPALA SIĘ MULTITHREADING Z TWOJEGO MODULE.JL
+result = Solve_Model(model, V_init, 1e-12, 10000)
 
 println()
 println("Model rozwiązany!")
@@ -60,12 +53,10 @@ println()
 
 println("GOTOWE! Wyniki zapisane w zmiennej 'result'")
 
-
-
 using Plots
 
-# 1. Przygotowanie danych (ręczne wyliczenie gridu dla pewności)
-K_GRID = model.k_min .+ (model.k_max - model.k_min) .* (model.omega .^ 5.0)
+# 1. Przygotowanie danych - ZMIANA: generujemy K_GRID przy użyciu funkcji
+K_GRID = GENERATE_K_GRID(model, :polynomial, 5.0)
 
 z_low  = 1
 z_mid  = Int(floor(model.N_z / 2)) + 1
@@ -104,47 +95,65 @@ println("1. Funkcja Wartości (V): Pokazuje całkowitą zdyskontowaną wartość
 println("2. Polityka Kapitałowa (k'): Pokazuje, ile kapitału firma chce mieć w następnym okresie. Punkt przecięcia z linią 45 stopni (przerywana) to stan stacjonarny - tam kapitał przestaje rosnąć/maleć.")
 println("3. Inwestycje (i): Pokazuje bieżące zakupy/sprzedaż kapitału. Zwróć uwagę na płaskie odcinki (i=0) - to regiony, w których koszty dostosowania (F, gamma) sprawiają, że firmie nie opłaca się zmieniać kapitału.")
 
-result
+#### Stationary distribution
 
-#### stationary distribution
-
-
-#Stationary distribution calculation
+# Stationary distribution calculation
 μ = stationary_distribution(model, result[3])
 
-μ
+println("\nRozkład stacjonarny μ obliczony.")
+println("Suma μ: ", sum(μ), " (powinno być ≈ 1.0)")
 
-# mu is summing to 1, which is correct for a probability distribution
-sum(μ)
-
+# Marginal distributions
 μ_K = sum(μ, dims=2)[:, 1]  # Marginal distribution over capital
 μ_z = sum(μ, dims=1)[1, :]  # Marginal distribution over productivity
 
+# Investment rate
 investment_rate = result[2] ./ K_GRID
 
-#5. Stationary distribution: Distribution over (k, z) and histogram of investment rates i/k. 
-#this is before calculating method of moments, so we can see the raw distribution of investment rates without summarizing it into a single number.
+# 5. Stationary distribution: Distribution over (k, z) and histogram of investment rates i/k. 
+# This is before calculating method of moments, so we can see the raw distribution of investment rates without summarizing it into a single number.
 
-histogram(K_GRID, μ_K, title="Marginal Distribution over Capital", xlabel="Capital k", ylabel="Probability")
-histogram(model.z_vec, μ_z, title="Marginal Distribution over Productivity", xlabel="Productivity z", ylabel="Probability", bins=3)
-histogram(investment_rate, title="Distribution of Investment Rates", xlabel="Investment Rate i/k", ylabel="Frequency", bins=30, alpha=0.7)
+p_dist1 = histogram(K_GRID, weights=μ_K, title="Marginal Distribution over Capital", 
+                    xlabel="Capital k", ylabel="Probability", bins=30)
 
+p_dist2 = bar(model.z_vec, μ_z, title="Marginal Distribution over Productivity", 
+              xlabel="Productivity z", ylabel="Probability", legend=false)
+
+p_dist3 = histogram(investment_rate[:], weights=μ[:], 
+                    title="Distribution of Investment Rates", 
+                    xlabel="Investment Rate i/k", ylabel="Frequency", 
+                    bins=50, alpha=0.7, legend=false)
+
+dist_plot = plot(p_dist1, p_dist2, p_dist3, layout=(3,1), size=(800, 1000))
+display(dist_plot)
+savefig(dist_plot, "stationary_distributions.png")
+
+# Momenty
 function moments(μ, result, K_GRID)
     i_grid = result[2]
     i_k = i_grid ./ K_GRID
+    
     average_investment_rate = sum(i_k .* μ) / sum(μ)
-    inaction_rate = sum(abs.(i_k .<= 0.01) .* μ) / sum(μ)
+    inaction_rate = sum((abs.(i_k) .<= 0.01) .* μ) / sum(μ)
     fraction_with_negative_investment = sum((i_grid .< 0) .* μ) / sum(μ)
     positive_spike_rate = sum((i_k .> 0.2) .* μ) / sum(μ)
     negative_spike_rate = sum((i_k .< -0.2) .* μ) / sum(μ)
 
-    println("Average Investment Rate: ", average_investment_rate)
-    println("Inaction Rate: ", inaction_rate)
-    println("Fraction with Negative Investment: ", fraction_with_negative_investment)
-    println("Positive Spike Rate (i/k > 20%): ", positive_spike_rate)
-    println("Negative Spike Rate (i/k < -20%): ", negative_spike_rate)
+    println("\n=== MOMENTY ROZKŁADU ===")
+    println("Average Investment Rate: ", round(average_investment_rate, digits=4))
+    println("Inaction Rate (|i/k| ≤ 1%): ", round(inaction_rate, digits=4))
+    println("Fraction with Negative Investment: ", round(fraction_with_negative_investment, digits=4))
+    println("Positive Spike Rate (i/k > 20%): ", round(positive_spike_rate, digits=4))
+    println("Negative Spike Rate (i/k < -20%): ", round(negative_spike_rate, digits=4))
 
-    return average_investment_rate, inaction_rate, fraction_with_negative_investment, positive_spike_rate, negative_spike_rate
+    return (average_investment_rate, inaction_rate, fraction_with_negative_investment, 
+            positive_spike_rate, negative_spike_rate)
 end
 
-moments(μ, result, K_GRID)
+model_moments = moments(μ, result, K_GRID)
+
+println("\n=== ANALIZA ZAKOŃCZONA ===")
+println("Wyniki zapisane w zmiennych:")
+println("  - result: pełne wyniki VFI")
+println("  - μ: rozkład stacjonarny")
+println("  - model_moments: momenty")
