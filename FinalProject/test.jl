@@ -4,7 +4,7 @@ using Revise, QuantEcon, Statistics, Parameters, Interpolations, Optim, Numerica
 
 # Załaduj moduł Engine z tego samego katalogu
 include(joinpath(@__DIR__, "module.jl"))
-using .Engine: InitializeModel, Solve_Model, VFI, GENERATE_K_GRID, ADJ_COST, IRR, OPTIMAL_H, OPERATING_PROFIT, get_transition_matrix_young, stationary_distribution
+using .Engine: InitializeModel, Solve_Model, VFI, GENERATE_K_GRID, ADJ_COST, IRR, OPTIMAL_H, OPERATING_PROFIT, get_transition_matrix_young, stationary_distribution, moments, objective_function_SMM
 
 # Sprawdzenie wątków (Upewnij się, że odpaliłeś Julię przez julia -t auto)
 println("Aktywne wątki: ", Threads.nthreads())
@@ -129,28 +129,12 @@ display(dist_plot)
 savefig(dist_plot, "stationary_distributions.png")
 
 # Momenty
-function moments(μ, result, K_GRID)
-    i_grid = result[2]
-    i_k = i_grid ./ K_GRID
-    
-    average_investment_rate = sum(i_k .* μ) / sum(μ)
-    inaction_rate = sum((abs.(i_k) .<= 0.01) .* μ) / sum(μ)
-    fraction_with_negative_investment = sum((i_grid .< 0) .* μ) / sum(μ)
-    positive_spike_rate = sum((i_k .> 0.2) .* μ) / sum(μ)
-    negative_spike_rate = sum((i_k .< -0.2) .* μ) / sum(μ)
-
-    println("\n=== MOMENTY ROZKŁADU ===")
-    println("Average Investment Rate: ", round(average_investment_rate, digits=4))
-    println("Inaction Rate (|i/k| ≤ 1%): ", round(inaction_rate, digits=4))
-    println("Fraction with Negative Investment: ", round(fraction_with_negative_investment, digits=4))
-    println("Positive Spike Rate (i/k > 20%): ", round(positive_spike_rate, digits=4))
-    println("Negative Spike Rate (i/k < -20%): ", round(negative_spike_rate, digits=4))
-
-    return (average_investment_rate, inaction_rate, fraction_with_negative_investment, 
-            positive_spike_rate, negative_spike_rate)
-end
-
 model_moments = moments(μ, result, K_GRID)
+
+theta_init = [0.05, 0.01, 0.80]
+opt_result = optimize(objective_function_SMM, theta_init, NelderMead(), Optim.Options(iterations=30, show_trace=true))
+
+println("Skonfigurowane paramtery: ", opt_result)
 
 println("\n=== ANALIZA ZAKOŃCZONA ===")
 println("Wyniki zapisane w zmiennych:")

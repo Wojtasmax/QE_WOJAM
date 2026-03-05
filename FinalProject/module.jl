@@ -1,7 +1,7 @@
 module Engine
 
 using QuantEcon, Statistics, Parameters, Interpolations, Optim, NumericalIntegration, LinearAlgebra
-export ProjectParams, InitializeModel, Solve_Model, VFI, GENERATE_K_GRID, ADJ_COST, IRR, OPTIMAL_H, OPERATING_PROFIT, get_transition_matrix_young, stationary_distribution
+export ProjectParams, InitializeModel, Solve_Model, VFI, GENERATE_K_GRID, ADJ_COST, IRR, OPTIMAL_H, OPERATING_PROFIT, get_transition_matrix_young, stationary_distribution, moments, objective_function_SMM, new_objective_function_SMM
 
 @with_kw struct ProjectParams
     #=====Parametry globalne=====#
@@ -237,6 +237,75 @@ function stationary_distribution(model::ProjectParams, future_k_policy::Matrix{F
     end
     
     return μ
+end
+
+function moments(μ, result, K_GRID, verbose=false)
+    i_grid = result[2]
+    i_k = i_grid ./ K_GRID
+    average_investment_rate = sum(i_k .* μ) / sum(μ)
+    inaction_rate = sum((abs.(i_k) .<= 0.01) .* μ) / sum(μ)
+    fraction_with_negative_investment = sum((i_grid .< 0) .* μ) / sum(μ)
+    positive_spike_rate = sum((i_k .> 0.2) .* μ) / sum(μ)
+    negative_spike_rate = sum((i_k .< -0.2) .* μ) / sum(μ)
+    if verbose
+        println("\n=== MOMENTY ROZKŁADU ===")
+        println("Average Investment Rate: ", round(average_investment_rate, digits=4))
+        println("Inaction Rate (|i/k| ≤ 1%): ", round(inaction_rate, digits=4))
+        println("Fraction with Negative Investment: ", round(fraction_with_negative_investment, digits=4))
+        println("Positive Spike Rate (i/k > 20%): ", round(positive_spike_rate, digits=4))
+        println("Negative Spike Rate (i/k < -20%): ", round(negative_spike_rate, digits=4))
+    end
+    return (average_investment_rate, inaction_rate, fraction_with_negative_investment, 
+            positive_spike_rate, negative_spike_rate)
+end
+
+
+
+function objective_function_SMM(theta::Vector{Float64}, verbose=false)
+    gamma_val, F_val, ps_val = theta[1], theta[2], theta[3]
+    
+    TARGET_MOMENTS = [0.122, 0.081, 0.104, 0.180, 0.014]
+
+    if gamma_val <= 0 || F_val < 0 || ps_val < 0 || ps_val > 1
+        return 1e6 
+    end
+
+    if verbose
+    println("Testuję parametry: γ = $(round(gamma_val, digits=4)), F = $(round(F_val, digits=4)), ps = $(round(ps_val, digits=4))")
+    end
+
+    N_z_opt = 3
+    rho_opt = 0.9
+    sigma_eps_opt = 0.12
+
+    z_tilde = exp(-sigma_eps_opt^2 / (2 * (1 - rho_opt^2)))
+    mu_logz = log(z_tilde)
+    mc_z = rouwenhorst(N_z_opt, rho_opt, sigma_eps_opt, mu_logz)
+    
+    P_z_opt = mc_z.p
+    lambda_z_opt = stationary_distributions(mc_z)[1]
+    z_raw = exp.(mc_z.state_values)
+    z_vec_opt = z_raw ./ sum(z_raw .* lambda_z_opt)
+
+    model_opt = ProjectParams(
+        gamma=gamma_val, F=F_val, ps=ps_val, 
+        N_A=100, N_z=N_z_opt, 
+        P_z=P_z_opt, z_vec=z_vec_opt, lambda_z=lambda_z_opt
+    )
+    # można zmienić 1e-4 by było szybciej/wolniej
+    V_init = zeros(model_opt.N_A, model_opt.N_z)
+    result_opt = Solve_Model(model_opt, V_init, 1e-4, 2000) 
+
+    μ_opt = stationary_distribution(model_opt, result_opt[3])
+    K_GRID_opt = GENERATE_K_GRID(model_opt, :polynomial, 5.0)
+    
+    moms_tuple = moments(μ_opt, result_opt, K_GRID_opt)
+    model_moms = [moms_tuple...] 
+    
+    distance = sum((model_moms .- TARGET_MOMENTS).^2)
+    println("Obecny błąd: ", round(distance, digits=6), "\n")
+    
+    return distance
 end
 
 end #moduł
