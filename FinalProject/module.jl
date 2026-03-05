@@ -1,7 +1,7 @@
 module Engine
 
 using QuantEcon, Statistics, Parameters, Interpolations, Optim, NumericalIntegration, LinearAlgebra
-export ProjectParams, Solve_Model, VFI, GENERATE_K_GRID, ADJ_COST, IRR, OPTIMAL_H, OPERATING_PROFIT, get_transition_matrix_young, stationary_distribution
+export ProjectParams, InitializeModel, Solve_Model, VFI, GENERATE_K_GRID, ADJ_COST, IRR, OPTIMAL_H, OPERATING_PROFIT, get_transition_matrix_young, stationary_distribution
 
 @with_kw struct ProjectParams
     #=====Parametry globalne=====#
@@ -39,9 +39,8 @@ export ProjectParams, Solve_Model, VFI, GENERATE_K_GRID, ADJ_COST, IRR, OPTIMAL_
 end
 
 
-function ProjectParams(; alpha=0.3, v=0.6, r=0.04, delta=0.08, w=1.0, rho=0.9, sigma_eps=0.12, N_z=7, gamma=0.05,
-    F=0.01, ps=0.80, k_max=500, k_min=1e-4, N_A=500)
-
+function InitializeModel(; alpha=0.3, v=0.6, r=0.04, delta=0.08, w=1.0, rho=0.9, sigma_eps=0.12, N_z=7, gamma=0.05,
+    F=0.01, ps=0.80, k_max=500, k_min=1e-4, N_A=500)
     beta = 1.0 / (1.0 + r)
     omega = range(0, 1, length=N_A)  
     

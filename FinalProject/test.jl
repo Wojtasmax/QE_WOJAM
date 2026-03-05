@@ -4,14 +4,14 @@ using Revise, QuantEcon, Statistics, Parameters, Interpolations, Optim, Numerica
 
 # Załaduj moduł Engine z tego samego katalogu
 include(joinpath(@__DIR__, "module.jl"))
-using .Engine: initialize_model, Solve_Model, VFI, GENERATE_K_GRID, ADJ_COST, IRR, OPTIMAL_H, OPERATING_PROFIT, get_transition_matrix_young, stationary_distribution
+using .Engine: InitializeModel, Solve_Model, VFI, GENERATE_K_GRID, ADJ_COST, IRR, OPTIMAL_H, OPERATING_PROFIT, get_transition_matrix_young, stationary_distribution
 
 # Sprawdzenie wątków (Upewnij się, że odpaliłeś Julię przez julia -t auto)
 println("Aktywne wątki: ", Threads.nthreads())
 
 # Inicjalizacja modelu
 println("Inicjalizacja modelu...")
-model = initialize_model()  # ZMIANA: używamy initialize_model zamiast ProjectParams()
+model = InitializeModel()  # ZMIANA: używamy InitializeModel zamiast InitilizeModel
 
 println("Parametry modelu:")
 println("α = ", model.alpha)
