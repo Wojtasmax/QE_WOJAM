@@ -33,8 +33,10 @@ println()
 # Rozwiązanie modelu - TU ODPALA SIĘ MULTITHREADING Z TWOJEGO MODULE.JL
 result = Solve_Model(model, V_init, 1e-12, 10000)
 
-println()
-println("Model rozwiązany!")
+V_final = result[1]
+i_policy = result[2]
+k_next_policy = result[3]
+
 println("Maksymalna wartość funkcji wartości: ", maximum(result[1]))
 println("Minimalna wartość funkcji wartości: ", minimum(result[1]))
 println()
@@ -45,13 +47,29 @@ println("Max inwestycja: ", maximum(result[2]))
 println("Min inwestycja: ", minimum(result[2]))
 println()
 
-println("Statystyki operating profit:")
-println("Średni zysk operacyjny: ", mean(result[6]))
-println("Max zysk operacyjny: ", maximum(result[6]))
-println("Min zysk operacyjny: ", minimum(result[6]))
-println()
 
-println("GOTOWE! Wyniki zapisane w zmiennej 'result'")
+println("\nObliczanie rozkładu stacjonarnego μ...")
+μ = stationary_distribution(model, k_next_policy)
+
+
+avg_operating_profit = 0.0
+avg_output = 0.0
+K_GRID = GENERATE_K_GRID(model, :polynomial, 5.0)
+
+for iz in 1:model.N_z
+    z = model.z_vec[iz]
+    for ik in 1:model.N_A
+        k = K_GRID[ik]
+        prob = μ[ik, iz]
+        
+        # Używamy wag z rozkładu stacjonarnego
+        avg_operating_profit += prob * OPERATING_PROFIT(model, k, z)
+        avg_output += prob * OUTPUT(model, k, z)
+    end
+end
+
+println("\n=== STATYSTYKI AGREGATOWE (BAZOWE) ===")
+println("Średni zysk operacyjny: ", round(avg_operating_profit, digits=4))
 
 using Plots
 
@@ -134,7 +152,13 @@ model_moments = moments(μ, result, K_GRID)
 theta_init = [0.05, 0.01, 0.80]
 opt_result = optimize(objective_function_SMM, theta_init, NelderMead(), Optim.Options(iterations=30, show_trace=true))
 
-println("Skonfigurowane paramtery: ", opt_result)
+println("Skonfigurowane parametry: ", opt_result)
+
+println("\n=== ANALIZA ZAKOŃCZONA ===")
+println("Wyniki zapisane w zmiennych:")
+println("  - result: pełne wyniki VFI")
+println("  - μ: rozkład stacjonarny")
+println("  - model_moments: momenty")
 
 println("\n=== ANALIZA ZAKOŃCZONA ===")
 println("Wyniki zapisane w zmiennych:")
