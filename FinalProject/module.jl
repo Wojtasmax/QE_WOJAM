@@ -30,8 +30,6 @@ export ProjectParams, InitializeModel, Solve_Model, VFI, GENERATE_K_GRID, ADJ_CO
     ps = 0.80         
 
     #======Grid=====#
-    # jak bedzie mulic to zmienic 
-    #jak beda bledy numeryczne to zmienic k_min
     k_max = 500
     k_min = 1e-4
     N_A = 500   
@@ -64,7 +62,7 @@ end
 
 function ADJ_COST(model::ProjectParams, i, k, toll_level=0.0005)
     @unpack F, gamma = model
-    if  (-toll_level<=i<=toll_level)
+    if abs(i) <= toll_level
         return 0.0
     else
         return ((gamma/2)*(i/k)^2)*k + F*k
